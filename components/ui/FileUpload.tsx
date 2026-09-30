@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Upload, X, Loader2 } from 'lucide-react';
+import axiosInstance from '@/lib/axios';
 
 interface FileUploadProps {
   accept?: string;
@@ -31,15 +32,10 @@ export function FileUpload({
         const formData = new FormData();
         formData.append('file', file);
         formData.append('folder', folder);
-        const token =
-          typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-        const res = await fetch('/api/v1/storage/upload', {
-          method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          body: formData,
+        const res = await axiosInstance.post('/api/v1/storage/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
-        if (!res.ok) throw new Error('Upload failed');
-        const data = await res.json();
+        const data = res.data;
         const url = data.data?.url ?? data.url ?? data.data;
         setPreview(url);
         onUploaded(url);
