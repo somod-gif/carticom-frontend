@@ -18,8 +18,9 @@ const STORAGE_KEY = 'carticom-auth';
 // ─── Session marker for middleware (role + expiry only — no tokens) ──
 
 const setSessionMarker = (role: string, expiresIn: number) => {
-  const payload = JSON.stringify({ role, exp: Date.now() + expiresIn * 1000 });
-  document.cookie = `carticom_session=${btoa(payload)}; Path=/; Max-Age=${expiresIn}; SameSite=Lax`;
+  const ttl = Number.isFinite(expiresIn) && expiresIn > 0 ? expiresIn : 86400;
+  const payload = JSON.stringify({ role, exp: Date.now() + ttl * 1000 });
+  document.cookie = `carticom_session=${btoa(payload)}; Path=/; Max-Age=${ttl}; SameSite=Lax`;
 };
 
 const removeSessionMarker = () => {
@@ -246,6 +247,6 @@ export const selectIsAuthenticated = (state: AuthState) =>
 export const selectIsLoading = (state: AuthState) => state.isLoading;
 export const selectUserRole = (state: AuthState) => state.user?.role;
 export const selectIsBusinessOwner = (state: AuthState) =>
-  state.user?.role === 'BUSINESS_OWNER';
+  state.user?.role === 'BUSINESS_OWNER' || state.user?.role === 'VENDOR';
 
 export default useAuthStore;

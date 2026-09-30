@@ -57,6 +57,7 @@ function LoginForm() {
         SUPER_ADMIN: '/super-admin/dashboard',
         ADMIN: '/admin/dashboard',
         BUSINESS_OWNER: '/dashboard',
+        VENDOR: '/dashboard',
         STAFF: '/staff/dashboard',
         CUSTOMER: '/storefront'};
       const currentUser = useAuthStore.getState().user;

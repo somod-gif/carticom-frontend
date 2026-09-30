@@ -36,7 +36,7 @@ export default function StaffProductsPage() {
   const { data: products, isLoading, error, refetch } = useProductsByStore(storeId ?? '');
   const updateProduct = useUpdateProduct();
 
-  const canManageProducts = user?.role === 'STAFF' || user?.role === 'BUSINESS_OWNER';
+  const canManageProducts = user?.role === 'STAFF' || user?.role === 'BUSINESS_OWNER' || user?.role === 'VENDOR';
 
   const handleStatusChange = (productId: string, newStatus: string) => {
     updateProduct.mutate({ id: productId, data: { status: newStatus as ProductStatus } });

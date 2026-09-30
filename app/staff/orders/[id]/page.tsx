@@ -81,7 +81,7 @@ export default function StaffOrderDetailPage() {
   const { data: order, isLoading, error, refetch } = useOrder(id);
   const updateOrder = useUpdateOrderStatus();
 
-  const canUpdateOrders = user?.role === 'STAFF' || user?.role === 'BUSINESS_OWNER';
+  const canUpdateOrders = user?.role === 'STAFF' || user?.role === 'BUSINESS_OWNER' || user?.role === 'VENDOR';
 
   const handleStatusChange = (newStatus: string) => {
     if (!order) return;
@@ -178,7 +178,7 @@ export default function StaffOrderDetailPage() {
               <Phone className="h-5 w-5 text-gray-400" />
               <div>
                 <p className="text-gray-500">Phone</p>
-                <p className="font-medium text-gray-900 dark:text-white">{order.customerPhone || '—'}</p>
+                <p className="font-medium text-gray-900 dark:text-white">{order.customerPhone || 'â€”'}</p>
               </div>
             </div>
           </div>
@@ -278,7 +278,7 @@ export default function StaffOrderDetailPage() {
       <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <Calendar className="h-5 w-5 text-blue-500" />
-          <span>Created <strong className="text-gray-900 dark:text-white">{formatDate(order.createdAt)}</strong> · Updated <strong className="text-gray-900 dark:text-white">{formatDate(order.updatedAt)}</strong> · Order ID <strong className="font-mono text-gray-900 dark:text-white">{order.id}</strong></span>
+          <span>Created <strong className="text-gray-900 dark:text-white">{formatDate(order.createdAt)}</strong> Â· Updated <strong className="text-gray-900 dark:text-white">{formatDate(order.updatedAt)}</strong> Â· Order ID <strong className="font-mono text-gray-900 dark:text-white">{order.id}</strong></span>
         </div>
       </div>
     </div>

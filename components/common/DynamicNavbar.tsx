@@ -183,7 +183,7 @@ export function DynamicNavbar() {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {user?.role === 'BUSINESS_OWNER' && (
+                    {(user?.role === 'BUSINESS_OWNER' || user?.role === 'VENDOR') && (
                       <>
                         <DropdownMenuItem asChild>
                           <Link href="/dashboard/profile">My Profile</Link>
@@ -298,7 +298,7 @@ export function DynamicNavbar() {
                 <div className="pt-6 mt-6 border-t border-gray-100 flex flex-col gap-3">
                   {isAuthenticated ? (
                     <>
-                      {user?.role === 'BUSINESS_OWNER' && (
+                      {(user?.role === 'BUSINESS_OWNER' || user?.role === 'VENDOR') && (
                         <Link href="/dashboard/profile" className="text-center text-sm font-medium text-gray-700 hover:text-gray-900 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
                           My Profile
                         </Link>

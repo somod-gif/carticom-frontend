@@ -63,7 +63,7 @@ export default function StaffOrdersPage() {
 
   const updateOrder = useUpdateOrderStatus();
 
-  const canUpdateOrders = user?.role === 'STAFF' || user?.role === 'BUSINESS_OWNER';
+  const canUpdateOrders = user?.role === 'STAFF' || user?.role === 'BUSINESS_OWNER' || user?.role === 'VENDOR';
 
   const handleStatusChange = (orderId: string, newStatus: string) => {
     updateOrder.mutate({ id: orderId, status: newStatus });

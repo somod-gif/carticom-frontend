@@ -93,19 +93,22 @@ export function usePermission(allowedRoles: UserRole[]): {
 
 // ─── Role Constants ─────────────────────────────────────────
 
-export const BUSINESS_OWNER_ONLY = [UserRole.BUSINESS_OWNER];
+export const BUSINESS_OWNER_ONLY = [UserRole.BUSINESS_OWNER, UserRole.VENDOR];
 export const STAFF_AND_ABOVE = [
   UserRole.BUSINESS_OWNER,
+  UserRole.VENDOR,
   UserRole.STAFF,
 ];
 export const ADMIN_AND_ABOVE = [
   UserRole.BUSINESS_OWNER,
+  UserRole.VENDOR,
   UserRole.STAFF,
   UserRole.ADMIN,
 ];
 export const SUPER_ADMIN_ONLY = [UserRole.SUPER_ADMIN];
 export const AUTHENTICATED_USERS = [
   UserRole.BUSINESS_OWNER,
+  UserRole.VENDOR,
   UserRole.STAFF,
   UserRole.ADMIN,
   UserRole.SUPER_ADMIN,

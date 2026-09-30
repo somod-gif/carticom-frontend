@@ -11,6 +11,7 @@ const ROLE_DASHBOARD_MAP: Record<string, string> = {
   SUPER_ADMIN: '/super-admin/dashboard',
   ADMIN: '/admin/dashboard',
   BUSINESS_OWNER: '/dashboard',
+  VENDOR: '/dashboard',
   STAFF: '/staff/dashboard',
   CUSTOMER: '/storefront'};
 
@@ -46,14 +47,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     if (isAuthenticated && PUBLIC_ROUTES.includes(pathname)) {
       router.replace(getDashboardForRole(user?.role));
     }
-  }, [ready, isAuthenticated, pathname, router, user?.role]);
+    if (!isAuthenticated && !isPublicRoute) {
+      const returnUrl = encodeURIComponent(pathname);
+      router.replace(`/login?returnUrl=${returnUrl}`);
+    }
+  }, [ready, isAuthenticated, pathname, router, user?.role, isPublicRoute]);
 
   // Public routes render immediately — never block the landing page with a loader.
   if (isPublicRoute) {
     return <>{children}</>;
   }
 
-  if (!ready) {
+  if (!ready || !isAuthenticated) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

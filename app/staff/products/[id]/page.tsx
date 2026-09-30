@@ -44,7 +44,7 @@ export default function StaffProductDetailPage() {
   const { data: product, isLoading, error, refetch } = useProduct(id);
   const updateProduct = useUpdateProduct();
 
-  const canManageProducts = user?.role === 'STAFF' || user?.role === 'BUSINESS_OWNER';
+  const canManageProducts = user?.role === 'STAFF' || user?.role === 'BUSINESS_OWNER' || user?.role === 'VENDOR';
 
   const handleStatusChange = (newStatus: string) => {
     if (!product) return;
@@ -77,7 +77,7 @@ export default function StaffProductDetailPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{product.name}</h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
-                {product.categoryName ? `${product.categoryName} · ` : ''}Added {formatDate(product.createdAt)}
+                {product.categoryName ? `${product.categoryName} Â· ` : ''}Added {formatDate(product.createdAt)}
               </p>
             </div>
           </div>
@@ -109,7 +109,7 @@ export default function StaffProductDetailPage() {
           <Package className="h-5 w-5 text-gray-400" />
           Description
         </h2>
-        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{product.description || '—'}</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{product.description || 'â€”'}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -170,15 +170,15 @@ export default function StaffProductDetailPage() {
           <div className="text-sm space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-gray-500">SKU</span>
-              <span className="font-mono text-xs text-gray-900 dark:text-white">{product.sku || '—'}</span>
+              <span className="font-mono text-xs text-gray-900 dark:text-white">{product.sku || 'â€”'}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-500">Barcode</span>
-              <span className="font-mono text-xs text-gray-900 dark:text-white">{product.barcode || '—'}</span>
+              <span className="font-mono text-xs text-gray-900 dark:text-white">{product.barcode || 'â€”'}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-500">Category</span>
-              <span className="text-gray-900 dark:text-white">{product.categoryName || '—'}</span>
+              <span className="text-gray-900 dark:text-white">{product.categoryName || 'â€”'}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-500">Slug</span>
@@ -207,7 +207,7 @@ export default function StaffProductDetailPage() {
       <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <Barcode className="h-5 w-5 text-blue-500" />
-          <span>Created <strong className="text-gray-900 dark:text-white">{formatDate(product.createdAt)}</strong> · Updated <strong className="text-gray-900 dark:text-white">{formatDate(product.updatedAt)}</strong> · Product ID <strong className="font-mono text-gray-900 dark:text-white">{product.id}</strong></span>
+          <span>Created <strong className="text-gray-900 dark:text-white">{formatDate(product.createdAt)}</strong> Â· Updated <strong className="text-gray-900 dark:text-white">{formatDate(product.updatedAt)}</strong> Â· Product ID <strong className="font-mono text-gray-900 dark:text-white">{product.id}</strong></span>
         </div>
       </div>
     </div>

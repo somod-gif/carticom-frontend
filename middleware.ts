@@ -28,6 +28,7 @@ function getRoleRedirect(role: string): string {
     case 'STAFF':
       return '/staff/dashboard';
     case 'BUSINESS_OWNER':
+    case 'VENDOR':
       return '/dashboard';
     case 'ADMIN':
       return '/admin/dashboard';
@@ -42,7 +43,8 @@ function getBasePath(role: string): string {
   switch (role) {
     case 'CUSTOMER': return '/storefront';
     case 'STAFF': return '/staff';
-    case 'BUSINESS_OWNER': return '/dashboard';
+    case 'BUSINESS_OWNER':
+    case 'VENDOR': return '/dashboard';
     case 'ADMIN': return '/admin';
     case 'SUPER_ADMIN': return '/super-admin';
     default: return '';
