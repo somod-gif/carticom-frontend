@@ -51,7 +51,7 @@ function ConfirmationContent() {
       <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 text-left space-y-3">
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">Order Number</span>
-          <span className="font-semibold text-gray-900 dark:text-white">{order.orderNumber || order.id.slice(0, 8).toUpperCase()}</span>
+          <span className="font-semibold text-gray-900 dark:text-white">{order.orderNumber || String(order.id).slice(0, 8).toUpperCase()}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">Status</span>

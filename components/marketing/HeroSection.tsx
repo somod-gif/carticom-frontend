@@ -41,7 +41,7 @@ export function HeroSection() {
               className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-4 py-1.5"
             >
               <Sparkles className="h-3.5 w-3.5 text-violet-600" />
-              <span className="text-xs font-semibold tracking-wide text-violet-700">AI Commerce Operating System</span>
+              <span className="text-xs font-semibold tracking-wide text-violet-700">AI-Powered Commerce Infrastructure for Africa</span>
             </motion.div>
 
             <motion.h1
@@ -55,6 +55,9 @@ export function HeroSection() {
 
             <motion.p {...fadeUp(0.25)} className="text-lg md:text-xl leading-relaxed text-gray-600">
               Turn WhatsApp and social-media conversations into sales. Manage products, customers, orders and operations — with AI handling the heavy lifting.
+              <span className="mt-2 block text-base font-semibold text-gray-900 md:text-lg">
+                Build. Sell. <span className="text-brand">Grow Smartly.</span>
+              </span>
             </motion.p>
 
             <motion.div {...fadeUp(0.35)} className="flex flex-wrap items-center gap-4">

@@ -3,6 +3,7 @@ import { HeroSection } from '@/components/marketing/HeroSection';
 import { ProblemSection } from '@/components/marketing/ProblemSection';
 import { FeaturesSection } from '@/components/marketing/FeaturesSection';
 import { AISection } from '@/components/marketing/AISection';
+import { SocialMediaSection } from '@/components/marketing/SocialMediaSection';
 import { HowItWorksSection } from '@/components/marketing/HowItWorksSection';
 import { DashboardShowcase } from '@/components/marketing/DashboardShowcase';
 import { PricingSection } from '@/components/marketing/PricingSection';
@@ -36,6 +37,7 @@ export default function Home() {
       <ProblemSection />
       <FeaturesSection />
       <AISection />
+      <SocialMediaSection />
       <HowItWorksSection />
       <DashboardShowcase />
       <PricingSection />

@@ -151,7 +151,7 @@ export default function StaffOrdersPage() {
                       href={`/staff/orders/${order.id}`}
                       className="font-mono text-xs text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
                     >
-                      #{order.id.slice(0, 8)}
+                      #{String(order.id).slice(0, 8)}
                     </Link>
                   </td>
                   <td className="py-3 px-4 text-gray-900 dark:text-white">{order.customerName}</td>

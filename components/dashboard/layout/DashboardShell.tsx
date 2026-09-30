@@ -18,7 +18,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-light-bg dark:bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-brand-soft/50 via-light-bg to-light-bg dark:from-gray-950 dark:via-background dark:to-background">
       <Sidebar
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}

@@ -135,7 +135,7 @@ export default function AdminOrdersPage() {
             <tbody>
               {filtered.map((order: { id: string; customerName: string; storeName: string; total: number; status: string; createdAt: string }) => (
                 <tr key={order.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                  <td className="py-3 px-4 font-mono text-xs text-gray-900 dark:text-white">#{order.id.slice(0, 8)}</td>
+                  <td className="py-3 px-4 font-mono text-xs text-gray-900 dark:text-white">#{String(order.id).slice(0, 8)}</td>
                   <td className="py-3 px-4 text-gray-900 dark:text-white">{order.customerName}</td>
                   <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{order.storeName}</td>
                   <td className="py-3 px-4 text-gray-900 dark:text-white font-medium">{formatCurrency(order.total)}</td>
