@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { HeroSection } from '@/components/marketing/HeroSection';
 import { ProblemSection } from '@/components/marketing/ProblemSection';
+import { ProofSection } from '@/components/marketing/ProofSection';
 import { FeaturesSection } from '@/components/marketing/FeaturesSection';
 import { AISection } from '@/components/marketing/AISection';
 import { SocialMediaSection } from '@/components/marketing/SocialMediaSection';
@@ -35,6 +36,7 @@ export default function Home() {
     <main className="flex-1">
       <HeroSection />
       <ProblemSection />
+      <ProofSection />
       <FeaturesSection />
       <AISection />
       <SocialMediaSection />
