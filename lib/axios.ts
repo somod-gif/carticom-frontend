@@ -76,6 +76,14 @@ axiosInstance.interceptors.request.use(
     if (accessToken && config.headers) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
+    if (config.headers && typeof window !== 'undefined') {
+      let sid = window.localStorage.getItem('cart_sid');
+      if (!sid) {
+        sid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        window.localStorage.setItem('cart_sid', sid);
+      }
+      config.headers['X-Cart-Session'] = sid;
+    }
     return config;
   },
   (error: AxiosError) => {

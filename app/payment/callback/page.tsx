@@ -13,9 +13,14 @@ type Status = 'processing' | 'success' | 'failed';
 function PaymentCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const transactionId = searchParams.get('transactionId');
   const orderId = searchParams.get('orderId');
-  const reference = searchParams.get('reference') || searchParams.get('trxref');
+  const cleanParam = (v: string | null) => (v ? v.split('?')[0].split('&')[0] : null);
+  const transactionId =
+    cleanParam(searchParams.get('transactionId')) ||
+    cleanParam(searchParams.get('reference')) ||
+    cleanParam(searchParams.get('trxref'));
+  const reference =
+    cleanParam(searchParams.get('reference')) || cleanParam(searchParams.get('trxref'));
   const guest = searchParams.get('guest');
 
   const [status, setStatus] = useState<Status>('processing');

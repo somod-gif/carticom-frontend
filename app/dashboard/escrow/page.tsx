@@ -1,5 +1,12 @@
-import { redirect } from 'next/navigation';
+'use client';
+
+import { FeatureComingSoon } from '@/components/dashboard/shared/FeatureComingSoon';
 
 export default function EscrowPage() {
-  redirect('/dashboard');
+  return (
+    <FeatureComingSoon
+      title="Escrow"
+      description="Payment escrow is coming soon. Orders are paid directly and settled instantly for now."
+    />
+  );
 }

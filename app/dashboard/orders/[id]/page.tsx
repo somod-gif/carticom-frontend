@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/axios';
+import axiosInstance from '@/lib/axios';
 import { useCurrentStoreId } from '@/hooks/useCurrentStore';
 import type { OrderDto } from '@/features/dashboard/types/orders.types';
 
@@ -36,7 +36,7 @@ export default function OrderDetailPage() {
   const { data: order, isLoading, error } = useQuery<OrderDto>({
     queryKey: ['order', storeId, orderId],
     queryFn: async () => {
-      const res = await api.get(`/api/v1/orders/${orderId}`);
+      const res = await axiosInstance.get(`/api/v1/orders/${orderId}`);
       return res.data.data;
     },
     enabled: !!storeId && !!orderId,
