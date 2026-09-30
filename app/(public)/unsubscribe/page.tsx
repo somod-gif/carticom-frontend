@@ -18,7 +18,6 @@ export default function UnsubscribePage() {
       return;
     }
 
-    // Call the backend unsubscribe endpoint
     // Call the backend unsubscribe endpoint. API_URL is empty for same-origin
     // deployments, where the vercel.json rewrite proxies /api/* to the backend.
     fetch(`${API_URL}/api/v1/unsubscribe`, {
