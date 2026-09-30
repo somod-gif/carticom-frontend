@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { API_URL } from '@/lib/site-config';
+
 
 export default function UnsubscribePage() {
   const searchParams = useSearchParams();
@@ -17,7 +19,9 @@ export default function UnsubscribePage() {
     }
 
     // Call the backend unsubscribe endpoint
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://backend-kqel.onrender.com'}/api/v1/unsubscribe`, {
+    // Call the backend unsubscribe endpoint. API_URL is empty for same-origin
+    // deployments, where the vercel.json rewrite proxies /api/* to the backend.
+    fetch(`${API_URL}/api/v1/unsubscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),

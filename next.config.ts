@@ -1,6 +1,28 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
+// Public API origin (browser calls). Empty NEXT_PUBLIC_API_URL means the app
+// talks to its own origin and the vercel.json rewrite proxies /api/* instead.
+const apiOrigin = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
+const apiOriginPattern = apiOrigin.length > 0 ? apiOrigin : null;
+
+// Allow the backend origin plus the usual monitoring/analytics endpoints.
+// localhost entries are development-only and stripped from production builds.
+const isProduction = process.env.NODE_ENV === "production";
+const devOrigins = isProduction
+  ? []
+  : ["http://localhost:8080", "ws://localhost:3000", "http://localhost:3000"];
+
+const connectSrc = [
+  "'self'",
+  ...(apiOriginPattern ? [apiOriginPattern] : []),
+  "https://*.sentry.io",
+  "https://*.ingest.sentry.io",
+  "https://*.vercel-insights.com",
+  "https://vitals.vercel-insights.com",
+  ...devOrigins,
+];
+
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -19,7 +41,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https: http:",
       "font-src 'self' https://fonts.gstatic.com",
-      "connect-src 'self' http://localhost:8080 ws://localhost:3000 https://*.sentry.io https://*.vercel-insights.com https://vitals.vercel-insights.com",
+      `connect-src ${connectSrc.join(" ")}`,
       "frame-ancestors 'none'",
     ].join("; "),
   },
@@ -43,6 +65,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "res.cloudinary.com" },
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      { protocol: "https", hostname: "**.byteship.dev" },
     ],
   },
 };
@@ -57,3 +80,4 @@ export default withSentryConfig(nextConfig, {
   disableLogger: true,
   automaticVercelMonitors: true,
 });
+

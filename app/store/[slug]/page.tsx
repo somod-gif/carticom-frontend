@@ -9,6 +9,7 @@ import { TEMPLATE_MAP, TEMPLATE_COMPONENT_FALLBACK, getTemplateByCategory } from
 import { extractErrorMessage } from '@/lib/axios';
 import { showToast } from '@/lib/notifications/toast';
 import { ShareButton } from '@/components/store/ShareButton';
+import { appUrl } from '@/lib/site-config';
 
 export default function StorePage() {
   const params = useParams();
@@ -80,7 +81,7 @@ export default function StorePage() {
   if (!store) return <ErrorState title="Store not found" description="We couldn't find a store with that address." />;
 
   const templateSlug = store.template || getTemplateByCategory(store.businessCategory || '');
-  const storeUrl = typeof window !== 'undefined' ? window.location.href : `https://carticom.vercel.app/store/${slug}`;
+  const storeUrl = typeof window !== 'undefined' ? window.location.href : appUrl(`/store/${slug}`);
 
   const brandVars = {
     '--store-primary': store.primaryColor || '#1d4ed8',

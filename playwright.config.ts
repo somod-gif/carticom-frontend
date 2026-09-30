@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || "https://carticom.vercel.app";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || "https://carticom.cv";
 
 export default defineConfig({
   testDir: "./tests",

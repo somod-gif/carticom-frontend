@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
+import { APP_URL } from "@/lib/site-config";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = "https://carticom.vercel.app";
+  const base = APP_URL;
   const now = new Date();
 
   const staticRoutes = [

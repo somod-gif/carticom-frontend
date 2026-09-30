@@ -49,7 +49,7 @@ export function AI() {
                       <Bot className="h-4 w-4 text-indigo-600" aria-hidden="true" />
                     </div>
                     <div className="bg-indigo-50 rounded-2xl rounded-tl-none px-4 py-2">
-                      <p className="text-sm text-gray-700">Your order #12345 is out for delivery and will arrive today by 6 PM. Track it here: carticom.vercel.app/track/12345</p>
+                      <p className="text-sm text-gray-700">Your order #12345 is out for delivery and will arrive today by 6 PM. Track it here: carticom.cv/track/12345</p>
                     </div>
                   </div>
 

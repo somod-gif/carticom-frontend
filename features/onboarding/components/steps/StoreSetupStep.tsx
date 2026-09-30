@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 
 import { Globe } from 'lucide-react';
 import type { StoreDto } from '@/features/onboarding/types';
+import { APP_URL } from '@/lib/site-config';
+
 
 interface StoreSetupStepProps {
   onNext: () => void;
@@ -16,7 +18,7 @@ interface StoreSetupStepProps {
 }
 
 export function StoreSetupStep({ onNext, onBack, store }: StoreSetupStepProps) {
-  const storeUrl = store?.slug ? `carticom.vercel.app/store/${store.slug}` : 'Store URL will be generated after creation';
+  const storeUrl = store?.slug ? `${APP_URL.replace(/^https?:\/\//, '')}/store/${store.slug}` : 'Store URL will be generated after creation';
 
   return (
     <motion.div

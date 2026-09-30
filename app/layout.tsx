@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { Analytics } from "@/components/analytics/Analytics";
+import { APP_URL } from "@/lib/site-config";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +17,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"]});
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://carticom.vercel.app"),
+  metadataBase: new URL(APP_URL),
   title: "Carticom - Commerce Operating System for Africa",
   description: "Build, sell, manage and scale your business with Carticom. The all-in-one commerce platform for African businesses.",
   keywords: ["commerce", "africa", "ecommerce", "payments", "subscriptions", "ai", "business"],
@@ -29,10 +30,10 @@ export const metadata: Metadata = {
     description: "Build, sell, manage and scale your business with Carticom.",
     type: "website",
     locale: "en_NG",
-    url: "https://carticom.vercel.app",
+    url: APP_URL,
     siteName: "Carticom",
     images: [{
-      url: "https://carticom.vercel.app/icon.svg",
+      url: `${APP_URL}/icon.svg`,
       width: 512,
       height: 512,
       alt: "Carticom"}]},
@@ -40,7 +41,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Carticom - Commerce Operating System for Africa",
     description: "Build, sell, manage and scale your business with Carticom.",
-    images: ["https://carticom.vercel.app/icon.svg"]}};
+    images: [`${APP_URL}/icon.svg`]}};
 
 export default function RootLayout({
   children}: Readonly<{
