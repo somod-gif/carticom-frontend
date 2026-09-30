@@ -30,7 +30,7 @@ const PROBLEMS = [
 
 export function ProblemSection() {
   return (
-    <section className="py-20 md:py-28 bg-white">
+    <section className="py-20 md:py-28">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -39,8 +39,8 @@ export function ProblemSection() {
           transition={{ duration: 0.5 }}
           className="mx-auto mb-14 max-w-2xl text-center"
         >
-          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-brand">The problem</p>
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-black">The problem</p>
+          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
             Selling shouldn&apos;t be this hard.
           </h2>
           <p className="mt-4 text-lg text-gray-600">
@@ -77,8 +77,8 @@ export function ProblemSection() {
           <div className="grid items-center gap-8 p-8 md:p-12 lg:grid-cols-[1.4fr_1fr]">
             <div>
               <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-brand" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-brand">The simple solution</span>
+                <Sparkles className="h-3.5 w-3.5 text-white" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-white">The simple solution</span>
               </div>
               <h3 className="text-2xl font-bold tracking-tight md:text-3xl">
                 Carticom brings it all together.
@@ -89,7 +89,7 @@ export function ProblemSection() {
               </p>
               <Button
                 asChild
-                className="mt-6 h-12 rounded-xl bg-brand px-7 text-base font-semibold text-white hover:bg-brand-dark"
+                className="mt-6 h-12 rounded-xl border-white bg-brand px-7 text-base font-semibold text-white hover:bg-brand-dark"
               >
                 <Link href="/register">
                   Get Started Free <ArrowRight className="ml-2 h-4 w-4" />

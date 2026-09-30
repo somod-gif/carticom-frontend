@@ -145,7 +145,7 @@ export function PricingSection() {
             <p className="mt-1 text-sm">Please refresh or contact support.</p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-wrap justify-center gap-4">
             {displayPlans.map((plan, i) => (
               <motion.div
                 key={plan.name}
@@ -154,7 +154,7 @@ export function PricingSection() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: i * 0.08 }}
                 className={cn(
-                  'relative flex flex-col rounded-2xl border bg-white p-6 transition-all duration-300',
+                  'relative flex w-full flex-col rounded-2xl border bg-white p-6 transition-all duration-300 sm:w-[calc(50%-0.5rem)] lg:w-[calc(25%-0.75rem)]',
                   plan.popular
                     ? 'border-brand/30 shadow-xl shadow-brand/10 ring-1 ring-brand/20'
                     : 'border-gray-200 hover:border-gray-300 hover:shadow-lg'

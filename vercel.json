@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://carticom-backend.onrender.com/api/:path*"
+      "destination": "https://carticom-backend.pxxlspace.cv/api/:path*"
     }
   ],
   "headers": [

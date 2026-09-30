@@ -19,7 +19,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https: http:",
       "font-src 'self' https://fonts.gstatic.com",
-      "connect-src 'self' https://*.sentry.io https://*.vercel-insights.com https://vitals.vercel-insights.com",
+      "connect-src 'self' http://localhost:8080 ws://localhost:3000 https://*.sentry.io https://*.vercel-insights.com https://vitals.vercel-insights.com",
       "frame-ancestors 'none'",
     ].join("; "),
   },
