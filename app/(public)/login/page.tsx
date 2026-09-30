@@ -46,6 +46,14 @@ function LoginForm() {
 
     if (result.success) {
       authToasts.loginSuccess();
+      const currentUser = useAuthStore.getState().user;
+
+      // First-time merchant: guide them through creating their store
+      if (currentUser?.onboardingCompleted === false) {
+        router.push('/onboarding');
+        return;
+      }
+
       const returnUrl = searchParams.get('returnUrl') || searchParams.get('redirect');
 
       if (returnUrl) {
@@ -60,7 +68,6 @@ function LoginForm() {
         VENDOR: '/dashboard',
         STAFF: '/staff/dashboard',
         CUSTOMER: '/storefront'};
-      const currentUser = useAuthStore.getState().user;
       const redirect = roleRedirectMap[currentUser?.role ?? ''] ?? '/dashboard';
       router.push(redirect);
     } else {

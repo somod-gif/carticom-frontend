@@ -45,13 +45,17 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready) return;
     if (isAuthenticated && PUBLIC_ROUTES.includes(pathname)) {
-      router.replace(getDashboardForRole(user?.role));
+      router.replace(
+        user?.onboardingCompleted === false
+          ? '/onboarding'
+          : getDashboardForRole(user?.role)
+      );
     }
     if (!isAuthenticated && !isPublicRoute) {
       const returnUrl = encodeURIComponent(pathname);
       router.replace(`/login?returnUrl=${returnUrl}`);
     }
-  }, [ready, isAuthenticated, pathname, router, user?.role, isPublicRoute]);
+  }, [ready, isAuthenticated, pathname, router, user?.role, user?.onboardingCompleted, isPublicRoute]);
 
   // Public routes render immediately — never block the landing page with a loader.
   if (isPublicRoute) {

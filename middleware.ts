@@ -92,11 +92,9 @@ export default function middleware(req: NextRequest) {
 
     // If user is on wrong role's route prefix, redirect to their correct one
     const currentBase = protectedPaths.find((p) => pathname.startsWith(p)) || '';
-    if (currentBase && basePath && currentBase !== basePath) {
-      // Don't redirect to unknown routes - just go to their home
-      if (basePath) {
-        return NextResponse.redirect(new URL(basePath === '/dashboard' ? '/dashboard' : `${basePath}/dashboard`, req.url));
-      }
+    // Onboarding is a shared, role-agnostic step — never bounce users away from it
+    if (currentBase && basePath && currentBase !== basePath && currentBase !== '/onboarding') {
+      return NextResponse.redirect(new URL(basePath === '/dashboard' ? '/dashboard' : `${basePath}/dashboard`, req.url));
     }
   }
 

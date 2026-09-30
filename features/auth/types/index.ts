@@ -96,6 +96,7 @@ export interface BackendAuthData {
   role: UserRole;
   mustChangePassword?: boolean;
   profileImageUrl?: string;
+  onboardingCompleted?: boolean;
 }
 
 export interface ApiError {

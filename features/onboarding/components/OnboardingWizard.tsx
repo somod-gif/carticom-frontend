@@ -15,6 +15,8 @@ import { CompletionStep } from './steps/CompletionStep';
 import type { BusinessInfoFormData } from '@/features/onboarding/schemas';
 import type { StoreDto } from '@/features/onboarding/types';
 import { useMyStores, useUpdateStore } from '@/features/onboarding/hooks/useOnboarding';
+import { axiosInstance } from '@/lib/axios';
+import { useAuthStore } from '@/features/auth/store/auth.store';
 
 const STEPS = [
   'business-info',
@@ -52,7 +54,16 @@ export function OnboardingWizard() {
     }
   }, [currentStep]);
 
-  const finish = useCallback(() => {
+  const finish = useCallback(async () => {
+    try {
+      await axiosInstance.post('/api/v1/auth/onboarding/complete');
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser) {
+        useAuthStore.getState().setUser({ ...currentUser, onboardingCompleted: true });
+      }
+    } catch {
+      // Non-blocking: server derives completion from store existence as fallback
+    }
     router.push('/dashboard');
   }, [router]);
 

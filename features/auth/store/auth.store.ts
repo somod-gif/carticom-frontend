@@ -87,7 +87,11 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
         // Redirect to onboarding if not completed
-        if (user.onboardingCompleted === false && typeof window !== 'undefined') {
+        if (
+          user.onboardingCompleted === false &&
+          typeof window !== 'undefined' &&
+          window.location.pathname !== '/onboarding'
+        ) {
           window.location.href = '/onboarding';
         }
       },
@@ -181,7 +185,11 @@ export const useAuthStore = create<AuthState>()(
                 window.location.href = '/change-password';
                 return;
               }
-              if (user?.onboardingCompleted === false && typeof window !== 'undefined') {
+              if (
+                user?.onboardingCompleted === false &&
+                typeof window !== 'undefined' &&
+                window.location.pathname !== '/onboarding'
+              ) {
                 window.location.href = '/onboarding';
                 return;
               }
@@ -212,7 +220,11 @@ export const useAuthStore = create<AuthState>()(
                 window.location.href = '/change-password';
                 return;
               }
-              if (user?.onboardingCompleted === false && typeof window !== 'undefined') {
+              if (
+                user?.onboardingCompleted === false &&
+                typeof window !== 'undefined' &&
+                window.location.pathname !== '/onboarding'
+              ) {
                 window.location.href = '/onboarding';
                 return;
               }

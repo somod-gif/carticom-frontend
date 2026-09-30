@@ -49,6 +49,7 @@ class AuthService {
             emailVerified: false, // Default
             mustChangePassword: backendData.mustChangePassword,
             profileImageUrl: backendData.profileImageUrl,
+            onboardingCompleted: backendData.onboardingCompleted,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()},
           tokens: {
@@ -94,6 +95,7 @@ class AuthService {
             emailVerified: false, // Default
             mustChangePassword: backendData.mustChangePassword,
             profileImageUrl: backendData.profileImageUrl,
+            onboardingCompleted: backendData.onboardingCompleted,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()},
           tokens: {
