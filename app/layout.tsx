@@ -23,8 +23,8 @@ export const metadata: Metadata = {
   keywords: ["commerce", "africa", "ecommerce", "payments", "subscriptions", "ai", "business"],
   authors: [{ name: "Carticom" }],
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg"},
+    icon: "/icon.png",
+    apple: "/icon.png"},
   openGraph: {
     title: "Carticom - Commerce Operating System for Africa",
     description: "Build, sell, manage and scale your business with Carticom.",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     url: APP_URL,
     siteName: "Carticom",
     images: [{
-      url: `${APP_URL}/icon.svg`,
+      url: `${APP_URL}/icon.png`,
       width: 512,
       height: 512,
       alt: "Carticom"}]},
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Carticom - Commerce Operating System for Africa",
     description: "Build, sell, manage and scale your business with Carticom.",
-    images: [`${APP_URL}/icon.svg`]}};
+    images: [`${APP_URL}/icon.png`]}};
 
 export default function RootLayout({
   children}: Readonly<{

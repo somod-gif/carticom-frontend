@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { useMyStores, useUpdateStore } from '@/features/onboarding/hooks/useOnboarding';
 import { LoadingState, EmptyState, ErrorState } from '@/components/dashboard/shared/StateComponents';
-import { Globe, Eye, Upload, ExternalLink, Check, ChevronDown, Copy, Palette, Type, Link2, Layout, Code } from 'lucide-react';
+import { Globe, Eye, Upload, ExternalLink, Check, ChevronDown, Copy, Palette, Type, Link2, Layout } from 'lucide-react';
 import { showToast } from '@/lib/notifications/toast';
 import { getTemplateIcon, getTemplatesForCategory } from '@/features/templates/registry';
 import { BUSINESS_CATEGORIES } from '@/features/templates/types';
@@ -34,7 +34,6 @@ const [editing, setEditing] = useState(false);
   const [instagramUrl, setInstagramUrl] = useState('');
   const [twitterUrl, setTwitterUrl] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
-  const [customCss, setCustomCss] = useState('');
 
   const [syncedStore, setSyncedStore] = useState<typeof store>(null);
 
@@ -52,7 +51,6 @@ const [editing, setEditing] = useState(false);
       setInstagramUrl(store.instagramUrl ?? '');
       setTwitterUrl(store.twitterUrl ?? '');
       setWhatsappNumber(store.whatsappNumber ?? '');
-      setCustomCss(store.customCss ?? '');
     }
   }, [store, syncedStore]);
 
@@ -151,20 +149,6 @@ const handleSave = () => {
       refetch();
     } catch {
       showToast('error', 'Failed to save social links');
-    }
-  };
-
-  const handleSaveCustomCss = async () => {
-    if (!store) return;
-    try {
-      await updateStore.mutateAsync({
-        id: store.id,
-        data: { customCss },
-      });
-      showToast('success', 'Custom CSS saved');
-      refetch();
-    } catch {
-      showToast('error', 'Failed to save custom CSS');
     }
   };
 
@@ -430,26 +414,6 @@ const handleSave = () => {
               Connect Facebook, Instagram, X and WhatsApp to your storefront — launching soon.
             </p>
           </div>
-        </div>
-
-        {/* Custom CSS */}
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 lg:col-span-2">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Code className="h-5 w-5" /> Custom CSS
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Add custom CSS to further customize your storefront appearance. This will be injected into your store page.
-          </p>
-          <textarea
-            value={customCss}
-            onChange={(e) => setCustomCss(e.target.value)}
-            placeholder="/* Add your custom CSS here */&#10;.store-header {&#10;  border-bottom: 2px solid #4f46e5;&#10;}"
-            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-mono resize-y"
-            rows={6}
-          />
-          <button onClick={handleSaveCustomCss} disabled={updateStore.isPending} className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm">
-            Save Custom CSS
-          </button>
         </div>
 
         {/* Template Selection */}
