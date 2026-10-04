@@ -19,7 +19,7 @@ export class OrdersRepository extends BaseRepository<OrderDto, CreateOrderDto, U
   }
 
   async updateOrderStatus(orderId: string, status: string) {
-    const response = await axiosInstance.patch(`/api/v1/orders/${orderId}/status`, { status });
+    const response = await axiosInstance.patch(`/api/v1/orders/${orderId}/status?status=${encodeURIComponent(status)}`);
     return response.data.data as OrderDto;
   }
 }

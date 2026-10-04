@@ -2,6 +2,7 @@
 
 import React, { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { ArrowLeft, Loader2, ShoppingBag, Tag, Truck, Package, CreditCard, Building2, Smartphone } from 'lucide-react';
 import { cartApi, checkoutApi, paymentApi } from '@/features/onboarding/services/onboarding.service';
 import type { CartDto } from '@/features/onboarding/types';
@@ -10,6 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { LoadingState, EmptyState, ErrorState } from '@/components/dashboard/shared/StateComponents';
+import { useCartStore } from '@/store/cart.store';
+import { extractErrorMessage } from '@/lib/axios';
 import { toast } from 'sonner';
 
 interface CustomerDetails {
@@ -24,7 +27,7 @@ interface CustomerDetails {
 function CheckoutPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const storeId = searchParams.get('store') || '';
+  const storeId = searchParams.get('store') || useCartStore.getState().storeId || '';
   const [cart, setCart] = useState<CartDto | null>(null);
   const [loadingCart, setLoadingCart] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,14 +49,24 @@ function CheckoutPageContent() {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
+      if (!storeId) {
+        setLoadingCart(false);
+        return;
+      }
       try {
         const res = await cartApi.get(storeId);
         if (cancelled) return;
-        if (!res.data.data) throw new Error('Cart is empty');
-        setCart(res.data.data);
-      } catch {
+        if (!res.data.data) setCart(null);
+        else setCart(res.data.data);
+      } catch (err) {
         if (cancelled) return;
-        setError('Unable to load your order. Please try again.');
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status === 404) {
+          useCartStore.getState().reset();
+          setCart(null);
+        } else {
+          setError(extractErrorMessage(err));
+        }
       } finally {
         if (!cancelled) setLoadingCart(false);
       }
@@ -97,7 +110,10 @@ function CheckoutPageContent() {
         deliveryMethod,
         paymentMethod,
         notes: notes || undefined,
-        couponCode: couponCode || undefined};
+        couponCode: couponCode || undefined,
+        customerName: customer.fullName.trim(),
+        customerEmail: customer.email.trim(),
+        customerPhone: customer.phone.trim()};
 
       if (deliveryMethod !== 'PICKUP') {
         payload.shippingAddress = {
@@ -140,8 +156,8 @@ function CheckoutPageContent() {
 
       toast.success('Order placed successfully!');
       router.push(`/storefront/order-confirmation?id=${orderId}`);
-    } catch {
-      toast.error('Failed to place order. Please try again.');
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -293,14 +309,22 @@ function CheckoutPageContent() {
             Coupon & Notes
           </h2>
           <div className="space-y-2">
-            <Label htmlFor="couponCode">Coupon Code (optional)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="couponCode">Coupon Code</Label>
+              <span className="inline-flex items-center rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Coming soon
+              </span>
+            </div>
             <Input
               id="couponCode"
               value={couponCode}
               onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
               placeholder="e.g. WELCOME10"
-              className="uppercase"
+              className="uppercase opacity-60"
+              disabled
+              aria-disabled="true"
             />
+            <p className="text-xs text-gray-400">Discount codes are on the way — stay tuned.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="notes">Order Notes (optional)</Label>
@@ -321,11 +345,20 @@ function CheckoutPageContent() {
           </h2>
           <div className="space-y-3">
             {cart.items.map((item) => (
-              <div key={item.productId} className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400 truncate pr-4">
-                  Product &times; {item.quantity}
-                </span>
-                <span className="font-medium text-gray-900 dark:text-white">
+              <div key={item.productId} className="flex items-center justify-between gap-3 text-sm">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="relative w-9 h-9 shrink-0 rounded-md bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                    {item.productImage ? (
+                      <Image src={item.productImage} alt={item.productName || 'Product'} fill unoptimized className="object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">N/A</div>
+                    )}
+                  </div>
+                  <span className="text-gray-600 dark:text-gray-400 truncate">
+                    {item.productName || 'Product'} &times; {item.quantity}
+                  </span>
+                </div>
+                <span className="font-medium text-gray-900 dark:text-white shrink-0">
                   {formatPrice(item.lineTotal)}
                 </span>
               </div>

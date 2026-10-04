@@ -11,7 +11,7 @@ const LazyBooksStorefront = dynamic(() => import('./BooksStorefront').then(m => 
 const LazyArtsStorefront = dynamic(() => import('./ArtsStorefront').then(m => ({ default: m.ArtsStorefront })), { ssr: false });
 const LazyDynamicStorefront = dynamic(() => import('./DynamicStorefront').then(m => ({ default: m.DynamicStorefront })), { ssr: false });
 
-export type StorefrontTemplateProps = { store: StoreDto; products: ProductDto[]; onAddToCart: (id: string, variantId?: string) => void; addingToCart: string | null };
+export type StorefrontTemplateProps = { store: StoreDto; products: ProductDto[]; onAddToCart: (id: string, variantId?: string) => void; onViewProduct?: (id: string) => void; addingToCart: string | null };
 
 export const TEMPLATE_MAP: Record<string, React.ComponentType<StorefrontTemplateProps>> = {
   'fashion-luxury': LazyFashionStorefront,

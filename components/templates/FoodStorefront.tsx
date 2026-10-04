@@ -95,7 +95,7 @@ function CategoriesSection() {
   );
 }
 
-function ShowcaseSection({ products, onAddToCart, addingToCart }: { products: ProductDto[]; onAddToCart: (id: string) => void; addingToCart: string | null }) {
+function ShowcaseSection({ products, onAddToCart, onViewProduct, addingToCart }: { products: ProductDto[]; onAddToCart: (id: string) => void; onViewProduct?: (id: string) => void; addingToCart: string | null }) {
   const fp = (p: number, c: string) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: c || 'NGN' }).format(p);
   return (
     <section className="py-20 bg-[#fcfaf5]">
@@ -107,13 +107,14 @@ function ShowcaseSection({ products, onAddToCart, addingToCart }: { products: Pr
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {products.slice(0, 8).map((product, i) => (
             <FadeIn key={product.id} delay={i * 0.05}>
-              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow group">
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow group cursor-pointer" onClick={() => onViewProduct?.(product.id)}>
                 <div className="aspect-square bg-[#f5f7f0] relative">
                   {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" unoptimized /> : (
                     <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="h-8 w-8 text-gray-300" /></div>
                   )}
-                  <button onClick={() => onAddToCart(product.id)} disabled={addingToCart === product.id}
-                    className="absolute bottom-3 right-3 w-10 h-10 rounded-full bg-[#4a7c3f] text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                  <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-gray-900 shadow-sm">View Product</span>
+                  <button onClick={(e) => { e.stopPropagation(); onAddToCart(product.id); }} disabled={addingToCart === product.id}
+                    className="absolute bottom-3 right-3 w-11 h-11 rounded-full bg-[#4a7c3f] text-white flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-lg">
                     <ShoppingBag className="h-4 w-4" />
                   </button>
                 </div>
@@ -203,12 +204,12 @@ function NewsletterSection() {
   );
 }
 
-export function FoodStorefront({ store, products, onAddToCart, addingToCart }: { store: StoreDto; products: ProductDto[]; onAddToCart: (id: string) => void; addingToCart: string | null }) {
+export function FoodStorefront({ store, products, onAddToCart, onViewProduct, addingToCart }: { store: StoreDto; products: ProductDto[]; onAddToCart: (id: string) => void; onViewProduct?: (id: string) => void; addingToCart: string | null }) {
   return (
     <div className="min-h-screen bg-[#fcfaf5]">
       <HeroSection store={store} />
       <CategoriesSection />
-      <ShowcaseSection products={products} onAddToCart={onAddToCart} addingToCart={addingToCart} />
+      <ShowcaseSection products={products} onAddToCart={onAddToCart} onViewProduct={onViewProduct} addingToCart={addingToCart} />
       <StorySection />
       <TestimonialsSection />
       <NewsletterSection />

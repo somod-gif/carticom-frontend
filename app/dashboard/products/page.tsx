@@ -2,15 +2,17 @@
 
 import { useState, useCallback } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useCurrentStoreId } from '@/hooks/useCurrentStore';
 import { useProductsByStore, useDeleteProduct, useCreateProduct } from '@/features/dashboard/hooks/useProducts';
 import { LoadingState, EmptyState, ErrorState } from '@/components/dashboard/shared/StateComponents';
 import { ProductStatus } from '@/features/dashboard/types/products.types';
 import type { ProductDto } from '@/features/dashboard/types/products.types';
+import { ViewToggle, useViewPreference } from '@/components/dashboard/ViewToggle';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, Plus, Trash2, Download, Share2 } from 'lucide-react';
+import { X, Plus, Trash2, Download, Share2, Eye } from 'lucide-react';
 
 const productSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -68,6 +70,7 @@ export default function ProductsPage() {
   const createProduct = useCreateProduct();
   const [showForm, setShowForm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [view, setView] = useViewPreference();
 
   const {
     register,
@@ -85,6 +88,7 @@ export default function ProductsPage() {
         name: data.name,
         description: data.description ?? '',
         price: data.price,
+        quantity: data.quantity,
         inventory: { quantity: data.quantity, trackQuantity: true, allowBackorder: false }});
       reset();
       setShowForm(false);
@@ -109,12 +113,12 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Products</h1>
           <p className="text-gray-600 mt-2">Manage your product catalog</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {products && products.length > 0 && (
             <button
               onClick={() => exportProductsCsv(products)}
@@ -122,6 +126,9 @@ export default function ProductsPage() {
             >
               <Download className="h-4 w-4" /> Export CSV
             </button>
+          )}
+          {products && products.length > 0 && (
+            <ViewToggle view={view} onChange={setView} />
           )}
           <button
             onClick={() => setShowForm(true)}
@@ -134,7 +141,7 @@ export default function ProductsPage() {
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">New Product</h2>
               <button onClick={() => setShowForm(false)} className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
@@ -181,6 +188,54 @@ export default function ProductsPage() {
         <div className="rounded-2xl border border-gray-200 bg-white p-6">
           <EmptyState title="No products yet" description="Create your first product to start selling." />
         </div>
+      ) : view === 'cards' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {products.map((product: ProductDto) => (
+            <div key={product.id} className="rounded-2xl border border-gray-200 bg-white overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+              <Link href={`/dashboard/products/${product.id}`} className="block relative aspect-[4/3] bg-gray-100">
+                {product.images?.[0] ? (
+                  <Image src={product.images[0]} alt={product.name} fill unoptimized className="object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No image</div>
+                )}
+              </Link>
+              <div className="p-4 flex flex-col gap-2 flex-1">
+                <Link href={`/dashboard/products/${product.id}`}>
+                  <p className="font-medium text-gray-900 line-clamp-1 hover:text-blue-600">{product.name}</p>
+                </Link>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-gray-900">{formatCurrency(product.price)}</span>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadgeClasses(product.status)}`}>
+                    {product.status === ProductStatus.OUT_OF_STOCK ? 'Out of Stock' : product.status.charAt(0) + product.status.slice(1).toLowerCase()}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500">Stock: {product.inventory?.quantity ?? '—'} · {formatDate(product.createdAt)}</p>
+                <div className="flex items-center gap-2 mt-auto pt-2">
+                  <Link
+                    href={`/dashboard/products/${product.id}`}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+                  >
+                    <Eye className="h-4 w-4" /> View
+                  </Link>
+                  <button
+                    onClick={() => shareOnWhatsApp(product)}
+                    className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    title="Share on WhatsApp"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(product.id)}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete product"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="rounded-2xl border border-gray-200 bg-white p-6">
           <div className="overflow-x-auto">
@@ -201,13 +256,15 @@ export default function ProductsPage() {
                   <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        {product.images?.[0] ? (
-                          <div className="relative w-10 h-10 rounded-lg overflow-hidden"><Image src={product.images[0]} alt={product.name} fill unoptimized className="object-cover bg-gray-100" /></div>
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xs">N/A</div>
-                        )}
+                        <Link href={`/dashboard/products/${product.id}`} className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0">
+                          {product.images?.[0] ? (
+                            <Image src={product.images[0]} alt={product.name} fill unoptimized className="object-cover bg-gray-100" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">N/A</div>
+                          )}
+                        </Link>
                         <div>
-                          <p className="font-medium text-gray-900">{product.name}</p>
+                          <Link href={`/dashboard/products/${product.id}`} className="font-medium text-gray-900 hover:text-blue-600">{product.name}</Link>
                           {product.categoryName && <p className="text-xs text-gray-500">{product.categoryName}</p>}
                         </div>
                       </div>
@@ -223,6 +280,13 @@ export default function ProductsPage() {
                     <td className="py-3 px-4 text-gray-500">{formatDate(product.createdAt)}</td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Link
+                          href={`/dashboard/products/${product.id}`}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="View product"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Link>
                         <button
                           onClick={() => shareOnWhatsApp(product)}
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"

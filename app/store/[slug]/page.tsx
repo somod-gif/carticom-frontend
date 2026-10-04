@@ -2,17 +2,21 @@
 
 import { useEffect, useState, createElement } from 'react';
 import { useParams } from 'next/navigation';
-import { storefrontApi, cartApi } from '@/features/onboarding/services/onboarding.service';
+import { storefrontApi } from '@/features/onboarding/services/onboarding.service';
 import type { StoreDto, ProductDto } from '@/features/onboarding/types';
 import { LoadingState, ErrorState } from '@/components/dashboard/shared/StateComponents';
 import { TEMPLATE_MAP, TEMPLATE_COMPONENT_FALLBACK, getTemplateByCategory } from '@/components/templates';
+import { useCartStore } from '@/store/cart.store';
 import { extractErrorMessage } from '@/lib/axios';
 import { showToast } from '@/lib/notifications/toast';
 import { ShareButton } from '@/components/store/ShareButton';
+import { StoreFooter } from '@/components/store/StoreFooter';
 import { appUrl } from '@/lib/site-config';
+import { useRouter } from 'next/navigation';
 
 export default function StorePage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params?.slug as string;
 
   const [store, setStore] = useState<StoreDto | null>(null);
@@ -66,14 +70,27 @@ export default function StorePage() {
     if (!store) return;
     setAddingToCart(productId);
     try {
-      await cartApi.add({ storeId: store.id, productId, quantity: 1, variantId });
-      showToast('success', 'Added to cart!');
+      const ok = await useCartStore.getState().addToCart({
+        storeId: store.id,
+        productId,
+        quantity: 1,
+        variantId});
+      if (ok) {
+        showToast('success', 'Added to cart!');
+      } else {
+        showToast('error', useCartStore.getState().lastError || 'Failed to add to cart. Please try again.');
+      }
     } catch (err) {
       const msg = extractErrorMessage(err);
       showToast('error', msg || 'Failed to add to cart. Please try again.');
     } finally {
       setAddingToCart(null);
     }
+  };
+
+  const handleViewProduct = (productId: string) => {
+    if (!store) return;
+    router.push(`/storefront/products/${productId}?store=${store.id}`);
   };
 
   if (loading) return <LoadingState message="Loading store..." />;
@@ -96,8 +113,10 @@ export default function StorePage() {
           store,
           products,
           onAddToCart: handleAddToCart,
+          onViewProduct: handleViewProduct,
           addingToCart,
         })}
+        <StoreFooter store={store} />
       </div>
       <ShareButton
         url={storeUrl}

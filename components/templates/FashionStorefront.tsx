@@ -14,6 +14,7 @@ interface FashionStorefrontProps {
   store: StoreDto;
   products: ProductDto[];
   onAddToCart: (productId: string) => void;
+  onViewProduct?: (id: string) => void;
   addingToCart: string | null;
 }
 
@@ -178,9 +179,10 @@ function HeroSection({ store }: { store: StoreDto }) {
   );
 }
 
-function ShowcaseSection({ products, onAddToCart, addingToCart }: {
+function ShowcaseSection({ products, onAddToCart, onViewProduct, addingToCart }: {
   products: ProductDto[];
   onAddToCart: (id: string) => void;
+  onViewProduct?: (id: string) => void;
   addingToCart: string | null;
 }) {
   const formatPrice = (price: number, currency: string) =>
@@ -232,6 +234,7 @@ function ShowcaseSection({ products, onAddToCart, addingToCart }: {
               transition={{ duration: 0.7, delay: i * 0.1, ease: [0.25, 0.1, 0.25, 1] }}
               onMouseEnter={() => setActiveIndex(i)}
               className="group cursor-pointer"
+              onClick={() => onViewProduct?.(product.id)}
             >
               <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-[#f0ede8] mb-4">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10" />
@@ -242,10 +245,11 @@ function ShowcaseSection({ products, onAddToCart, addingToCart }: {
                     <ShoppingBag className="h-12 w-12 text-gray-300" />
                   </div>
                 )}
+                <span className="absolute bottom-5 left-4 z-20 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-[#1a1a2e] shadow-sm backdrop-blur-sm">View Product</span>
                 <button
-                  onClick={() => onAddToCart(product.id)}
+                  onClick={(e) => { e.stopPropagation(); onAddToCart(product.id); }}
                   disabled={addingToCart === product.id}
-                  className="absolute bottom-4 right-4 z-20 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 duration-300"
+                  className="absolute bottom-4 right-4 z-20 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-white transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 translate-y-0 sm:translate-y-2 sm:group-hover:translate-y-0 duration-300"
                 >
                   <Plus className="h-5 w-5 text-[#1a1a2e]" />
                 </button>
@@ -585,11 +589,11 @@ function NewsletterSection() {
   );
 }
 
-export function FashionStorefront({ store, products, onAddToCart, addingToCart }: FashionStorefrontProps) {
+export function FashionStorefront({ store, products, onAddToCart, onViewProduct, addingToCart }: FashionStorefrontProps) {
   return (
     <div className="min-h-screen" style={{ fontFamily: 'Inter, sans-serif' }}>
       <HeroSection store={store} />
-      <ShowcaseSection products={products} onAddToCart={onAddToCart} addingToCart={addingToCart} />
+      <ShowcaseSection products={products} onAddToCart={onAddToCart} onViewProduct={onViewProduct} addingToCart={addingToCart} />
       <StorytellingSection />
       <ValuesSection />
       <TestimonialsSection />

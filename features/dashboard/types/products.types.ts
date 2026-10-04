@@ -36,6 +36,10 @@ export interface CreateProductDto {
   barcode?: string;
   categoryId?: string;
   images?: string[];
+  /** Top-level stock quantity (backend maps this onto stockQuantity). */
+  quantity?: number;
+  /** Backend's active flag — status is derived from this + stock level. */
+  isActive?: boolean;
   inventory?: {
     quantity: number;
     trackQuantity: boolean;

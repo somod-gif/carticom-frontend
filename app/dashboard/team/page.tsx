@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useCurrentStoreId } from '@/hooks/useCurrentStore';
-import { useStaff, useInviteStaff, useDeleteStaff } from '@/features/dashboard/hooks/useStaff';
+import { useStaff, useInviteStaff, useDeleteStaff, useUpdateStaff } from '@/features/dashboard/hooks/useStaff';
 import { LoadingState, ErrorState, EmptyState } from '@/components/dashboard/shared/StateComponents';
 import { StaffRole, StaffStatus, type StaffDto } from '@/features/dashboard/types/staff.types';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,7 @@ export default function StaffPage() {
   const { data: staffList, isLoading, error, refetch } = useStaff(storeId ?? '');
   const inviteMutation = useInviteStaff();
   const deleteMutation = useDeleteStaff();
+  const updateMutation = useUpdateStaff();
 
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -57,7 +58,7 @@ export default function StaffPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Staff</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
@@ -130,9 +131,18 @@ export default function StaffPage() {
                     </td>
                     <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{staff.email}</td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-0.5 text-xs rounded-full ${roleColors[staff.role]}`}>
-                        {staff.role.charAt(0) + staff.role.slice(1).toLowerCase()}
-                      </span>
+                      <select
+                        value={staff.role}
+                        onChange={(e) => updateMutation.mutate({ id: String(staff.id), data: { role: e.target.value as StaffRole } })}
+                        className={`h-9 px-2 border border-transparent rounded-full text-xs font-medium cursor-pointer ${roleColors[staff.role]}`}
+                        aria-label={`Role for ${staff.firstName} ${staff.lastName}`}
+                      >
+                        {Object.values(StaffRole).map((role) => (
+                          <option key={role} value={role}>
+                            {role.charAt(0) + role.slice(1).toLowerCase()}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td className="py-3 px-4">
                       <span className={`px-2 py-0.5 text-xs rounded-full ${statusColors[staff.status]}`}>

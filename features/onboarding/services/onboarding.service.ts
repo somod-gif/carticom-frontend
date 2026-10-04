@@ -207,6 +207,12 @@ export const storefrontApi = {
       `${API_PREFIX}/storefront/stores/${slug}/products`
     ),
 
+  /** Public product detail (works for guests — used by the storefront PDP). */
+  getProductById: (id: string) =>
+    axiosInstance.get<ApiResponse<ProductDto>>(
+      `${API_PREFIX}/storefront/products/${id}`
+    ),
+
   getStoreCategories: (slug: string) =>
     axiosInstance.get<ApiResponse<unknown[]>>(
       `${API_PREFIX}/storefront/stores/${slug}/categories`

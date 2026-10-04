@@ -18,6 +18,7 @@ interface DynamicStorefrontProps {
   store: StoreDto;
   products: ProductDto[];
   onAddToCart: (productId: string) => void;
+  onViewProduct?: (id: string) => void;
   addingToCart: string | null;
 }
 
@@ -171,8 +172,8 @@ function HeroDynamic({ store, template }: { store: StoreDto; template: TemplateC
   );
 }
 
-function ShowcaseDynamic({ products, onAddToCart, addingToCart, template }: {
-  products: ProductDto[]; onAddToCart: (id: string) => void; addingToCart: string | null; template: TemplateConfig;
+function ShowcaseDynamic({ products, onAddToCart, onViewProduct, addingToCart, template }: {
+  products: ProductDto[]; onAddToCart: (id: string) => void; onViewProduct?: (id: string) => void; addingToCart: string | null; template: TemplateConfig;
 }) {
   const formatPrice = (price: number, currency: string) =>
     new Intl.NumberFormat('en-NG', { style: 'currency', currency: currency || 'NGN', minimumFractionDigits: 0 }).format(price);
@@ -196,7 +197,8 @@ function ShowcaseDynamic({ products, onAddToCart, addingToCart, template }: {
           {displayProducts.map((product, i) => (
             <motion.div key={product.id} initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }} transition={{ duration: 0.7, delay: i * 0.1 }}
-              className="group cursor-pointer">
+              className="group cursor-pointer"
+              onClick={() => onViewProduct?.(product.id)}>
               <div className={cn(
                 'relative aspect-[4/5] rounded-2xl overflow-hidden mb-4',
                 CARD_STYLES[template.effects.cardStyle] || CARD_STYLES.elevated
@@ -205,8 +207,9 @@ function ShowcaseDynamic({ products, onAddToCart, addingToCart, template }: {
                   <ShoppingBag className="h-12 w-12" style={{ color: `${template.colors.muted}44` }} />
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10" />
-                <button onClick={() => onAddToCart(product.id)} disabled={addingToCart === product.id}
-                  className="absolute bottom-4 right-4 z-20 w-12 h-12 rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 duration-300"
+                <span className="absolute bottom-5 left-4 z-20 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-gray-900 shadow-sm backdrop-blur-sm">View Product</span>
+                <button onClick={(e) => { e.stopPropagation(); onAddToCart(product.id); }} disabled={addingToCart === product.id}
+                  className="absolute bottom-4 right-4 z-20 w-12 h-12 rounded-full flex items-center justify-center shadow-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 translate-y-0 sm:translate-y-2 sm:group-hover:translate-y-0 duration-300"
                   style={{ backgroundColor: template.colors.primary, color: '#fff' }}>
                   <Plus className="h-5 w-5" />
                 </button>
@@ -337,11 +340,11 @@ function NewsletterDynamic({ template }: { template: TemplateConfig }) {
   );
 }
 
-export function DynamicStorefront({ store, products, onAddToCart, addingToCart }: DynamicStorefrontProps) {
+export function DynamicStorefront({ store, products, onAddToCart, onViewProduct, addingToCart }: DynamicStorefrontProps) {
   const template = useTemplateConfig(store.template, store);
   const sectionComponents: Record<string, React.ReactNode> = {
     hero: <HeroDynamic key="hero" store={store} template={template} />,
-    showcase: <ShowcaseDynamic key="showcase" products={products} onAddToCart={onAddToCart} addingToCart={addingToCart} template={template} />,
+    showcase: <ShowcaseDynamic key="showcase" products={products} onAddToCart={onAddToCart} onViewProduct={onViewProduct} addingToCart={addingToCart} template={template} />,
     storytelling: <StorytellingDynamic key="storytelling" template={template} />,
     testimonials: <TestimonialsDynamic key="testimonials" template={template} />,
     newsletter: <NewsletterDynamic key="newsletter" template={template} />};

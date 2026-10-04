@@ -9,6 +9,8 @@ import { cartApi } from '@/features/onboarding/services/onboarding.service';
 import type { CartDto, CartItemDto } from '@/features/onboarding/types';
 import { Button } from '@/components/ui/button';
 import { LoadingState, EmptyState, ErrorState } from '@/components/dashboard/shared/StateComponents';
+import { useCartStore } from '@/store/cart.store';
+import { extractErrorMessage } from '@/lib/axios';
 
 import { toast } from 'sonner';
 
@@ -19,11 +21,11 @@ export default function CartPage() {
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
   const [retryKey, setRetryKey] = useState(0);
 
-  // storeId comes from URL query param ?store=<id> set on add-to-cart
+  // storeId: URL query ?store=<id> first, then the remembered store from the cart store
   const [searchParams] = useState(() => new URLSearchParams(
     typeof window !== 'undefined' ? window.location.search : ''
   ));
-  const storeId = searchParams.get('store');
+  const storeId = searchParams.get('store') || useCartStore.getState().storeId || '';
   const hasStoreId = !!storeId;
   const [loading, setLoading] = useState(hasStoreId);
 
@@ -34,11 +36,22 @@ export default function CartPage() {
       try {
         const res = await cartApi.get(storeId as string);
         if (cancelled) return;
-        if (!res.data.data) throw new Error('Cart is empty');
-        setCart(res.data.data);
-      } catch {
+        if (!res.data.data) {
+          setCart(null);
+        } else {
+          setCart(res.data.data);
+        }
+      } catch (err) {
         if (cancelled) return;
-        setError('Failed to load your cart. Please try again.');
+        // 404 / missing cart (e.g. new browser session) → show empty state, not an error
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status === 404) {
+          useCartStore.getState().reset();
+          setCart(null);
+          setError(null);
+        } else {
+          setError(extractErrorMessage(err));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -61,8 +74,8 @@ export default function CartPage() {
     try {
       const res = await cartApi.updateItem(storeIdToUse, productId, newQuantity);
       if (res.data.data) setCart(res.data.data);
-    } catch {
-      toast.error('Failed to update quantity.');
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
     } finally {
       setUpdatingItems((prev) => {
         const next = new Set(prev);
@@ -78,8 +91,8 @@ export default function CartPage() {
       const res = await cartApi.removeItem(storeIdToUse, productId);
       if (res.data.data) setCart(res.data.data);
       toast.success('Item removed from cart.');
-    } catch {
-      toast.error('Failed to remove item.');
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
     }
   };
 
@@ -121,7 +134,7 @@ export default function CartPage() {
         {cart.items.map((item: CartItemDto) => (
           <div
             key={item.productId}
-            className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 flex items-center gap-4"
+            className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 flex flex-wrap items-center gap-3 sm:gap-4"
           >
             <div className="flex-shrink-0 relative w-14 h-14 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden">
               {item.productImage ? (
@@ -130,7 +143,7 @@ export default function CartPage() {
                 <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No img</div>
               )}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-[140px]">
               <p className="font-medium text-gray-900 dark:text-white truncate">
                 {item.productName || `Product ${item.productId.slice(0, 8)}`}
               </p>
@@ -143,7 +156,7 @@ export default function CartPage() {
               <button
                 onClick={() => handleUpdateQuantity(item.productId, item.quantity - 1)}
                 disabled={item.quantity <= 1 || updatingItems.has(item.productId)}
-                className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                className="w-11 h-11 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
                 aria-label="Decrease"
               >
                 <Minus className="h-3.5 w-3.5" />
@@ -153,14 +166,14 @@ export default function CartPage() {
               </span>
               <button
                 onClick={() => handleUpdateQuantity(item.productId, item.quantity + 1)}
-                className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                className="w-11 h-11 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
                 aria-label="Increase"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>
             </div>
 
-            <div className="text-right min-w-[80px]">
+            <div className="min-w-[72px] text-right ml-auto">
               <p className="font-semibold text-gray-900 dark:text-white text-sm">
                 {formatPrice(item.lineTotal)}
               </p>
@@ -168,7 +181,7 @@ export default function CartPage() {
 
             <button
               onClick={() => handleRemoveItem(item.productId)}
-              className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              className="w-11 h-11 flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
               aria-label="Remove item"
             >
               <Trash2 className="h-4 w-4" />
@@ -185,7 +198,7 @@ export default function CartPage() {
           </div>
           <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
             <span>Shipping</span>
-            <span>Calculated at checkout</span>
+            <span className="font-medium text-green-600 dark:text-green-400">Free</span>
           </div>
           <div className="flex justify-between text-lg font-bold text-gray-900 dark:text-white pt-2 border-t border-gray-200 dark:border-gray-800">
             <span>Total</span>

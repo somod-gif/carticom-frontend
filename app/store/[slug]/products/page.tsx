@@ -2,19 +2,20 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Search, SlidersHorizontal, Grid3X3, List, ShoppingBag } from 'lucide-react';
 import { storefrontApi, productApi } from '@/features/onboarding/services/onboarding.service';
-import { cartApi } from '@/features/onboarding/services/onboarding.service';
 import type { StoreDto, ProductDto } from '@/features/onboarding/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LoadingState, EmptyState, ErrorState } from '@/components/dashboard/shared/StateComponents';
 import { toast } from 'sonner';
+import { useCartStore } from '@/store/cart.store';
 
 function StoreProductsContent() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
   const [store, setStore] = useState<StoreDto | null>(null);
   const [products, setProducts] = useState<ProductDto[]>([]);
@@ -74,13 +75,15 @@ function StoreProductsContent() {
 
   const handleAddToCart = async (product: ProductDto) => {
     if (!store) return;
-    try {
-      await cartApi.add({ storeId: store.id, productId: product.id, quantity: 1 });
+    const ok = await useCartStore.getState().addToCart({ storeId: store.id, productId: product.id, quantity: 1 });
+    if (ok) {
       toast.success(`${product.name} added to cart`);
-    } catch {
-      toast.error('Failed to add to cart');
+    } else {
+      toast.error(useCartStore.getState().lastError || 'Failed to add to cart');
     }
   };
+
+  const viewHref = (product: ProductDto) => `/storefront/products/${product.id}?store=${store?.id ?? ''}`;
 
   const formatPrice = (price: number, currency = 'NGN') =>
     new Intl.NumberFormat('en-NG', { style: 'currency', currency, minimumFractionDigits: 2 }).format(price);
@@ -163,7 +166,7 @@ function StoreProductsContent() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((product) => (
             <div key={product.id} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden hover:shadow-lg transition-shadow group">
-              <Link href={`/storefront/products/${product.id}`} className="block">
+              <Link href={viewHref(product)} className="block">
                 <div className="aspect-square bg-gray-100 dark:bg-gray-800 relative overflow-hidden">
                   {product.imageUrl ? (
                     <Image src={product.imageUrl} alt={product.name} fill unoptimized className="object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -173,7 +176,7 @@ function StoreProductsContent() {
                 </div>
               </Link>
               <div className="p-3 space-y-2">
-                <Link href={`/storefront/products/${product.id}`}>
+                <Link href={viewHref(product)}>
                   <h3 className="font-medium text-sm text-gray-900 dark:text-white truncate hover:text-blue-600">{product.name}</h3>
                 </Link>
                 <div className="flex items-center justify-between">
@@ -193,7 +196,7 @@ function StoreProductsContent() {
         <div className="space-y-3">
           {filtered.map((product) => (
             <div key={product.id} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 flex items-center gap-4">
-              <Link href={`/storefront/products/${product.id}`} className="shrink-0">
+              <Link href={viewHref(product)} className="shrink-0">
                 <div className="relative w-16 h-16 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden">
                   {product.imageUrl ? (
                     <Image src={product.imageUrl} alt={product.name} fill unoptimized className="object-cover" />
@@ -203,13 +206,16 @@ function StoreProductsContent() {
                 </div>
               </Link>
               <div className="flex-1 min-w-0">
-                <Link href={`/storefront/products/${product.id}`}>
+                <Link href={viewHref(product)}>
                   <h3 className="font-medium text-gray-900 dark:text-white truncate hover:text-blue-600">{product.name}</h3>
                 </Link>
                 <p className="text-xs text-gray-500 truncate">{product.description}</p>
               </div>
               <span className="font-bold text-blue-600">{formatPrice(product.price, store.currency)}</span>
-              <Button size="sm" onClick={() => handleAddToCart(product)}>Add to Cart</Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" variant="outline" onClick={() => router.push(viewHref(product))}>View Product</Button>
+                <Button size="sm" onClick={() => handleAddToCart(product)}>Add to Cart</Button>
+              </div>
             </div>
           ))}
         </div>

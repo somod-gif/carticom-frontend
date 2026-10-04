@@ -29,6 +29,9 @@ export interface CreateCustomerDto {
 
 export interface UpdateCustomerDto extends Partial<CreateCustomerDto> {
   status?: CustomerStatus;
+  /** Backend stores a single `name` field (responses split it into first/last). */
+  name?: string;
+  address?: string;
 }
 
 export enum CustomerStatus {

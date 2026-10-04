@@ -5,13 +5,15 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ShoppingCart, Minus, Plus, ArrowLeft, Package } from 'lucide-react';
-import { productApi, cartApi } from '@/features/onboarding/services/onboarding.service';
+import { storefrontApi } from '@/features/onboarding/services/onboarding.service';
 import type { ProductDto } from '@/features/onboarding/types';
 import { Button } from '@/components/ui/button';
 import { LoadingState, ErrorState } from '@/components/dashboard/shared/StateComponents';
 import { VariantSelector } from '@/components/storefront/VariantSelector';
 import type { SelectedVariant } from '@/components/storefront/VariantSelector';
+import { useCartStore } from '@/store/cart.store';
 import { cn } from '@/lib/utils';
+import { extractErrorMessage } from '@/lib/axios';
 import { toast } from 'sonner';
 
 export default function ProductDetailPage() {
@@ -33,7 +35,7 @@ export default function ProductDetailPage() {
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await productApi.getById(id);
+        const res = await storefrontApi.getProductById(id);
         if (cancelled) return;
         if (!res.data.data) throw new Error('Product not found');
         setProduct(res.data.data);
@@ -58,15 +60,19 @@ export default function ProductDetailPage() {
     if (!product) return;
     setAdding(true);
     try {
-      await cartApi.add({
+      const ok = await useCartStore.getState().addToCart({
         storeId: product.storeId,
         productId: product.id,
         quantity,
         variantId: selectedVariants[0]?.id});
-      toast.success(`${product.name} added to cart!`);
-      setJustAdded(true);
-    } catch {
-      toast.error('Failed to add item to cart.');
+      if (ok) {
+        toast.success(`${product.name} added to cart!`);
+        setJustAdded(true);
+      } else {
+        toast.error(useCartStore.getState().lastError || 'Failed to add item to cart. Please try again.');
+      }
+    } catch (err) {
+      toast.error(extractErrorMessage(err) || 'Failed to add item to cart.');
     } finally {
       setAdding(false);
     }
@@ -209,7 +215,7 @@ export default function ProductDetailPage() {
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   disabled={quantity <= 1}
-                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                  className="p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
                   aria-label="Decrease quantity"
                 >
                   <Minus className="h-4 w-4" />
@@ -220,7 +226,7 @@ export default function ProductDetailPage() {
                 <button
                   onClick={() => setQuantity(Math.min(effectiveStock, quantity + 1))}
                   disabled={quantity >= effectiveStock}
-                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                  className="p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
                   aria-label="Increase quantity"
                 >
                   <Plus className="h-4 w-4" />

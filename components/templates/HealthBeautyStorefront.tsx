@@ -72,7 +72,7 @@ function HeroSection({ store }: { store: StoreDto }) {
   );
 }
 
-function ShowcaseSection({ products, onAddToCart, addingToCart }: { products: ProductDto[]; onAddToCart: (id: string) => void; addingToCart: string | null }) {
+function ShowcaseSection({ products, onAddToCart, onViewProduct, addingToCart }: { products: ProductDto[]; onAddToCart: (id: string) => void; onViewProduct?: (id: string) => void; addingToCart: string | null }) {
   const fp = (p: number, c: string) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: c || 'NGN' }).format(p);
   return (
     <section className="py-24 bg-white">
@@ -84,13 +84,14 @@ function ShowcaseSection({ products, onAddToCart, addingToCart }: { products: Pr
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
           {products.slice(0, 8).map((product, i) => (
             <FadeIn key={product.id} delay={i * 0.05}>
-              <div className="group">
+              <div className="group cursor-pointer" onClick={() => onViewProduct?.(product.id)}>
                 <div className="aspect-[3/4] rounded-2xl bg-[#fdf2f8] relative overflow-hidden mb-3">
                   {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" unoptimized /> : (
                     <div className="w-full h-full flex items-center justify-center"><Sparkles className="h-10 w-10 text-gray-300" /></div>
                   )}
-                  <button onClick={() => onAddToCart(product.id)} disabled={addingToCart === product.id}
-                    className="absolute bottom-3 right-3 w-11 h-11 rounded-full bg-[#db2777] text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                  <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-gray-900 shadow-sm">View Product</span>
+                  <button onClick={(e) => { e.stopPropagation(); onAddToCart(product.id); }} disabled={addingToCart === product.id}
+                    className="absolute bottom-3 right-3 w-11 h-11 rounded-full bg-[#db2777] text-white flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-lg">
                     <ShoppingBag className="h-4 w-4" />
                   </button>
                 </div>
@@ -173,11 +174,11 @@ function MembershipSection() {
   );
 }
 
-export function HealthBeautyStorefront({ store, products, onAddToCart, addingToCart }: { store: StoreDto; products: ProductDto[]; onAddToCart: (id: string) => void; addingToCart: string | null }) {
+export function HealthBeautyStorefront({ store, products, onAddToCart, onViewProduct, addingToCart }: { store: StoreDto; products: ProductDto[]; onAddToCart: (id: string) => void; onViewProduct?: (id: string) => void; addingToCart: string | null }) {
   return (
     <div className="min-h-screen bg-white">
       <HeroSection store={store} />
-      <ShowcaseSection products={products} onAddToCart={onAddToCart} addingToCart={addingToCart} />
+      <ShowcaseSection products={products} onAddToCart={onAddToCart} onViewProduct={onViewProduct} addingToCart={addingToCart} />
       <FeaturesSection />
       <TestimonialsSection />
       <MembershipSection />

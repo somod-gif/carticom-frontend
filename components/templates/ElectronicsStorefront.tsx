@@ -8,13 +8,14 @@ import type { StoreDto, ProductDto } from '@/features/onboarding/types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-function GlassCard({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
+function GlassCard({ children, className, delay = 0, onClick }: { children: React.ReactNode; className?: string; delay?: number; onClick?: () => void }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6, delay, ease: [0.25, 0.1, 0.25, 1] }}
+      onClick={onClick}
       className={cn('relative overflow-hidden rounded-2xl bg-[#111827]/80 backdrop-blur-xl border border-[rgba(0,212,255,0.08)] hover:border-[rgba(0,212,255,0.2)] transition-all duration-300', className)}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-[rgba(0,212,255,0.03)] via-transparent to-[rgba(124,58,237,0.03)] pointer-events-none" />
@@ -106,7 +107,7 @@ function FeaturesSection() {
   );
 }
 
-function ShowcaseSection({ products, onAddToCart, addingToCart }: { products: ProductDto[]; onAddToCart: (id: string) => void; addingToCart: string | null }) {
+function ShowcaseSection({ products, onAddToCart, onViewProduct, addingToCart }: { products: ProductDto[]; onAddToCart: (id: string) => void; onViewProduct?: (id: string) => void; addingToCart: string | null }) {
   const formatPrice = (p: number, c: string) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: c || 'NGN' }).format(p);
   return (
     <section className="py-24 bg-[#0b1120]">
@@ -117,13 +118,14 @@ function ShowcaseSection({ products, onAddToCart, addingToCart }: { products: Pr
         </motion.div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {products.slice(0, 8).map((product, i) => (
-            <GlassCard key={product.id} delay={i * 0.05} className="group">
+            <GlassCard key={product.id} delay={i * 0.05} className="group cursor-pointer" onClick={() => onViewProduct?.(product.id)}>
               <div className="aspect-square bg-[#1a2744] relative overflow-hidden">
                 {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" unoptimized /> : (
                   <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="h-10 w-10 text-gray-600" /></div>
                 )}
-                <button onClick={() => onAddToCart(product.id)} disabled={addingToCart === product.id}
-                  className="absolute bottom-3 right-3 w-10 h-10 rounded-lg bg-[#00d4ff] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="absolute bottom-3 left-3 z-10 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-gray-900 shadow-sm">View Product</span>
+                <button onClick={(e) => { e.stopPropagation(); onAddToCart(product.id); }} disabled={addingToCart === product.id}
+                  className="absolute bottom-3 right-3 w-11 h-11 rounded-lg bg-[#00d4ff] flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <ShoppingBag className="h-4 w-4 text-[#0a1628]" />
                 </button>
               </div>
@@ -188,12 +190,12 @@ function NewsletterSection() {
   );
 }
 
-export function ElectronicsStorefront({ store, products, onAddToCart, addingToCart }: { store: StoreDto; products: ProductDto[]; onAddToCart: (id: string) => void; addingToCart: string | null }) {
+export function ElectronicsStorefront({ store, products, onAddToCart, onViewProduct, addingToCart }: { store: StoreDto; products: ProductDto[]; onAddToCart: (id: string) => void; onViewProduct?: (id: string) => void; addingToCart: string | null }) {
   return (
     <div className="min-h-screen bg-[#0b1120]">
       <HeroSection store={store} />
       <FeaturesSection />
-      <ShowcaseSection products={products} onAddToCart={onAddToCart} addingToCart={addingToCart} />
+      <ShowcaseSection products={products} onAddToCart={onAddToCart} onViewProduct={onViewProduct} addingToCart={addingToCart} />
       <TestimonialsSection />
       <NewsletterSection />
     </div>

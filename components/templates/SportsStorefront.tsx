@@ -76,7 +76,7 @@ function HeroSection({ store }: { store: StoreDto }) {
   );
 }
 
-function ShowcaseSection({ products, onAddToCart, addingToCart }: { products: ProductDto[]; onAddToCart: (id: string) => void; addingToCart: string | null }) {
+function ShowcaseSection({ products, onAddToCart, onViewProduct, addingToCart }: { products: ProductDto[]; onAddToCart: (id: string) => void; onViewProduct?: (id: string) => void; addingToCart: string | null }) {
   const fp = (p: number, c: string) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: c || 'NGN' }).format(p);
   return (
     <section className="py-24 bg-[#020617]">
@@ -88,13 +88,14 @@ function ShowcaseSection({ products, onAddToCart, addingToCart }: { products: Pr
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {products.slice(0, 8).map((product, i) => (
             <FadeIn key={product.id} delay={i * 0.05}>
-              <div className="bg-[#0f172a] border border-gray-800 hover:border-[#ef4444]/30 transition-all group">
+              <div className="bg-[#0f172a] border border-gray-800 hover:border-[#ef4444]/30 transition-all group cursor-pointer" onClick={() => onViewProduct?.(product.id)}>
                 <div className="aspect-square bg-[#1e293b] relative">
                   {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} fill className="object-cover" unoptimized /> : (
                     <div className="w-full h-full flex items-center justify-center"><Dumbbell className="h-10 w-10 text-gray-700" /></div>
                   )}
-                  <button onClick={() => onAddToCart(product.id)} disabled={addingToCart === product.id}
-                    className="absolute bottom-3 right-3 w-12 h-12 bg-[#ef4444] text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-gray-900 shadow-sm">View Product</span>
+                  <button onClick={(e) => { e.stopPropagation(); onAddToCart(product.id); }} disabled={addingToCart === product.id}
+                    className="absolute bottom-3 right-3 w-12 h-12 bg-[#ef4444] text-white flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <ShoppingBag className="h-5 w-5" />
                   </button>
                 </div>
@@ -178,11 +179,11 @@ function MembershipSection() {
   );
 }
 
-export function SportsStorefront({ store, products, onAddToCart, addingToCart }: { store: StoreDto; products: ProductDto[]; onAddToCart: (id: string) => void; addingToCart: string | null }) {
+export function SportsStorefront({ store, products, onAddToCart, onViewProduct, addingToCart }: { store: StoreDto; products: ProductDto[]; onAddToCart: (id: string) => void; onViewProduct?: (id: string) => void; addingToCart: string | null }) {
   return (
     <div className="min-h-screen bg-[#020617]">
       <HeroSection store={store} />
-      <ShowcaseSection products={products} onAddToCart={onAddToCart} addingToCart={addingToCart} />
+      <ShowcaseSection products={products} onAddToCart={onAddToCart} onViewProduct={onViewProduct} addingToCart={addingToCart} />
       <FeaturesSection />
       <TestimonialsSection />
       <MembershipSection />

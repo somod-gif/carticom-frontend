@@ -22,7 +22,7 @@ export default function StorefrontLayout({
     : null;
   const [resolvedStoreId, setResolvedStoreId] = useState<string | null>(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const { items, fetchCart, setStoreId } = useCartStore();
+  const { items, fetchCart, setStoreId, storeId: rememberedStoreId } = useCartStore();
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const getStoreSlugFromPath = () => {
@@ -32,7 +32,7 @@ export default function StorefrontLayout({
   };
 
   const storeSlug = getStoreSlugFromPath();
-  const storeId = queryStoreId || resolvedStoreId;
+  const storeId = queryStoreId || resolvedStoreId || rememberedStoreId;
   const storeLabel = storeSlug ? storeSlug.replace(/-/g, ' ') : null;
 
   useEffect(() => {
@@ -50,11 +50,12 @@ export default function StorefrontLayout({
   }, [storeSlug, queryStoreId]);
 
   useEffect(() => {
-    if (storeId) {
-      setStoreId(storeId);
-      fetchCart(storeId);
-    }
-  }, [storeId, fetchCart, setStoreId]);
+    if (!storeId) return;
+    setStoreId(storeId);
+    // Refetch on every navigation so the badge is always current
+    // (and clears after checkout converts the cart server-side).
+    fetchCart(storeId);
+  }, [storeId, pathname, fetchCart, setStoreId]);
 
   const isCheckoutPage = pathname?.startsWith('/storefront/checkout');
   const isPreviewPage = pathname?.startsWith('/store/preview/');

@@ -20,6 +20,7 @@ const connectSrc = [
   "https://*.ingest.sentry.io",
   "https://*.vercel-insights.com",
   "https://vitals.vercel-insights.com",
+  "https://www.sabilytics.com",
   ...devOrigins,
 ];
 
@@ -37,7 +38,7 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.sentry-cdn.com https://vercel.live",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.sentry-cdn.com https://vercel.live https://www.sabilytics.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https: http:",
       "font-src 'self' https://fonts.gstatic.com",
