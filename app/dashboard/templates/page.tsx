@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Check, Eye, ExternalLink, LayoutTemplate, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LoadingState, EmptyState } from '@/components/dashboard/shared/StateComponents';
 import { TEMPLATES } from '@/features/templates/registry';
 import { BUSINESS_CATEGORIES } from '@/features/templates/types';
 import type { TemplateConfig } from '@/features/templates/types';
@@ -22,6 +24,7 @@ const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
 type StoreInfo = { id: string; name: string; slug: string; category?: string };
 
 export default function TemplatesPage() {
+  const router = useRouter();
   const { storeId } = useCurrentStoreId();
   const { data: myStores, isLoading } = useMyStores();
   const updateStore = useUpdateStore();
@@ -43,9 +46,25 @@ export default function TemplatesPage() {
   );
 
   const applyTemplate = (t: TemplateConfig) => {
-    if (!store || updateStore.isPending) return;
+    if (!store) {
+      showToast('info', 'Set up your shop first', {
+        description: 'You need a shop before you can apply a template.'});
+      return;
+    }
+    if (updateStore.isPending) return;
+    // Apply the whole look: the look itself, its category, palette and font —
+    // previously only the category was saved, so the storefront never changed.
     updateStore.mutate(
-      { id: store.id, data: { businessCategory: t.category } },
+      {
+        id: store.id,
+        data: {
+          businessCategory: t.category,
+          template: t.id,
+          primaryColor: t.colors.primary,
+          secondaryColor: t.colors.secondary,
+          fontFamily: t.typography.headingFont
+        }
+      },
       {
         onSuccess: () =>
           showToast('success', `"${t.name}" is now live on your storefront`),
@@ -54,9 +73,17 @@ export default function TemplatesPage() {
     );
   };
 
-  if (isLoading || !storeId) {
+  if (isLoading) {
+    return <LoadingState message="Loading templates..." />;
+  }
+
+  if (!storeId) {
     return (
-      <div className="p-6 text-sm text-gray-500">Loading templates...</div>
+      <EmptyState
+        title="Set up your shop first"
+        description="You need a shop before you can style it. It only takes a few minutes."
+        action={{ label: 'Set up my shop', onClick: () => router.push('/onboarding') }}
+      />
     );
   }
 

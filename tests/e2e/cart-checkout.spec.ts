@@ -66,11 +66,12 @@ test.describe("Cart to checkout flow", () => {
     await expect(page.getByRole("heading", { name: "Shopping Cart" })).toBeVisible();
     await expect(page.getByText("Adire Ankara Dress")).toBeVisible();
     await expect(page.getByText("1 item")).toBeVisible();
-    await expect(page.getByText("2", { exact: true })).toBeVisible();
+    await expect(page.getByRole("main").getByText("2", { exact: true })).toBeVisible();
 
-    const summary = page.locator("div.rounded-xl.border.bg-white.dark\\:bg-gray-900.p-6", {
-      hasText: "Calculated at checkout",
-    });
+    const summary = page.locator(
+      "div.rounded-xl.border.border-gray-200.dark\\:border-gray-800.bg-white.dark\\:bg-gray-900.p-6",
+      { hasText: "Proceed to Checkout" }
+    );
     await expect(summary).toContainText("Total");
     await expect(summary).toContainText("50,000.00");
 

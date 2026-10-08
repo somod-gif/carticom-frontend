@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, Loader2, X } from 'lucide-react';
 import { firstProductSchema, type FirstProductFormData } from '@/features/onboarding/schemas';
 import { useCreateProduct } from '@/features/onboarding/hooks/useOnboarding';
-import { axiosInstance } from '@/lib/axios';
+import { axiosInstance, extractErrorMessage } from '@/lib/axios';
 
 interface FirstProductStepProps {
   onNext: () => void;
@@ -66,9 +66,15 @@ export function FirstProductStep({ onNext, onBack, storeId, onProductCreated }: 
           }
         }
         if (uploadedUrls.length > 0) {
+          // The update endpoint validates the full product payload (name and
+          // price are required), so resend everything the seller typed along
+          // with the first uploaded image — the backend stores one image only.
           await axiosInstance.put(`/api/v1/products/${product.id}`, {
-            imageUrl: uploadedUrls[0],
-            images: JSON.stringify(uploadedUrls)});
+            name: data.name,
+            description: data.description || undefined,
+            price: Number(data.price),
+            quantity: Number(data.quantity),
+            imageUrl: uploadedUrls[0]});
         }
       }
 
@@ -77,8 +83,7 @@ export function FirstProductStep({ onNext, onBack, storeId, onProductCreated }: 
       }
       onNext();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to create product. Please try again.';
-      setSubmitError(msg);
+      setSubmitError(extractErrorMessage(err));
     }
   };
 

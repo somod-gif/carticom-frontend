@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Boxes, ExternalLink, Save, Trash2 } from 'lucide-react';
 import { useProduct, useUpdateProduct, useDeleteProduct } from '@/features/dashboard/hooks/useProducts';
@@ -13,6 +12,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { FileUpload } from '@/components/ui/FileUpload';
+
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+
+function validateImageFile(file: File): string | null {
+  if (!file.type.startsWith('image/')) {
+    return 'Please choose an image file (PNG, JPG or WebP).';
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    return 'Please choose an image under 10MB.';
+  }
+  return null;
+}
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(amount);
@@ -33,13 +45,19 @@ export default function ProductDetailPage() {
     compareAtPrice: '',
     sku: '',
     quantity: '',
+    imageUrl: '',
     status: ProductStatus.ACTIVE});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    if (!product) return;
+  const [syncedProduct, setSyncedProduct] = useState<typeof product | null>(null);
+
+  // Sync the form when the product first loads (React's documented
+  // "adjust state when a prop changes" pattern — guarded, runs during
+  // render instead of an effect that would cascade).
+  if (product && product !== syncedProduct) {
+    setSyncedProduct(product);
     setForm({
       name: product.name ?? '',
       description: product.description ?? '',
@@ -47,8 +65,9 @@ export default function ProductDetailPage() {
       compareAtPrice: product.compareAtPrice != null ? String(product.compareAtPrice) : '',
       sku: product.sku ?? '',
       quantity: String(product.inventory?.quantity ?? 0),
+      imageUrl: product.images?.[0] ?? '',
       status: product.status});
-  }, [product]);
+  }
 
   if (isLoading) return <LoadingState message="Loading product..." />;
   if (error || !product) return <ErrorState title="Product not found" description="This product could not be loaded." onRetry={refetch} />;
@@ -76,6 +95,7 @@ export default function ProductDetailPage() {
           compareAtPrice: form.compareAtPrice ? Number(form.compareAtPrice) : undefined,
           sku: form.sku.trim() || undefined,
           quantity: form.status === ProductStatus.OUT_OF_STOCK ? 0 : quantity,
+          imageUrl: form.imageUrl,
           isActive: form.status === ProductStatus.ACTIVE || form.status === ProductStatus.OUT_OF_STOCK}});
       await refetch();
     } catch (err) {
@@ -139,22 +159,16 @@ export default function ProductDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
           <div className="rounded-2xl border border-gray-200 bg-white p-4">
-            <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100">
-              {product.images?.[0] ? (
-                <Image src={product.images[0]} alt={product.name} fill unoptimized className="object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400">No image</div>
-              )}
-            </div>
-            {product.images?.length > 1 && (
-              <div className="grid grid-cols-4 gap-2 mt-3">
-                {product.images.slice(1, 5).map((img, i) => (
-                  <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
-                    <Image src={img} alt={`${product.name} ${i + 2}`} fill unoptimized className="object-cover" />
-                  </div>
-                ))}
-              </div>
-            )}
+            <p className="text-sm font-medium text-gray-700 mb-2">Product image</p>
+            <FileUpload
+              folder="products"
+              currentUrl={form.imageUrl || undefined}
+              onUploaded={(url) => setForm((prev) => ({ ...prev, imageUrl: url }))}
+              validateFile={validateImageFile}
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              This is the picture customers see in your shop. PNG or JPG, up to 10MB.
+            </p>
           </div>
 
           <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-2 text-sm">

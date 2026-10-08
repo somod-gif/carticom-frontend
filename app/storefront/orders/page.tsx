@@ -8,20 +8,9 @@ import type { OrderDto } from '@/features/onboarding/types';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { Button } from '@/components/ui/button';
 import { LoadingState, EmptyState, ErrorState } from '@/components/dashboard/shared/StateComponents';
-
-const ORDER_STATUS_STYLES: Record<string, string> = {
-  PENDING: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
-  PROCESSING: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
-  SHIPPED: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800',
-  DELIVERED: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
-  CANCELLED: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800'};
-
-const PAYMENT_STATUS_STYLES: Record<string, string> = {
-  PENDING: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
-  PROCESSING: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
-  COMPLETED: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
-  FAILED: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
-  REFUNDED: 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'};
+import { OrderStatusBadge, PaymentStatusBadge } from '@/components/storefront/OrderStatusBadge';
+import { showToast } from '@/lib/notifications/toast';
+import { extractErrorMessage } from '@/lib/axios';
 
 function SignedOutPanel() {
   return (
@@ -62,6 +51,8 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -80,6 +71,20 @@ export default function OrdersPage() {
     load();
     return () => { cancelled = true; };
   }, [isAuthenticated, retryKey]);
+
+  const handleCancel = async (order: OrderDto) => {
+    setCancellingId(order.id);
+    try {
+      await checkoutApi.cancelOrder(order.id);
+      showToast('success', 'Order cancelled.');
+      setConfirmingId(null);
+      setRetryKey((k) => k + 1);
+    } catch (err) {
+      showToast('error', extractErrorMessage(err) || 'Failed to cancel this order. Please try again.');
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   if (authLoading) return <LoadingState message="Checking your account..." />;
   if (!isAuthenticated) return <SignedOutPanel />;
@@ -108,47 +113,89 @@ export default function OrdersPage() {
 
       <div className="space-y-4">
         {orders.map((order) => (
-          <Link
+          <div
             key={order.id}
-            href={`/storefront/orders/${order.id}`}
-            className="block rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 space-y-4 hover:border-blue-300 dark:hover:border-blue-800 hover:shadow-sm transition-all"
+            className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 space-y-4 hover:border-blue-300 dark:hover:border-blue-800 hover:shadow-sm transition-all"
           >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                  {order.orderNumber}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {new Date(order.createdAt).toLocaleDateString('en-NG', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                  })}
-                </p>
+            <Link
+              href={`/storefront/orders/${order.id}`}
+              className="block space-y-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {order.orderNumber}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {new Date(order.createdAt).toLocaleDateString('en-NG', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <OrderStatusBadge status={order.status} />
+                  <PaymentStatusBadge status={order.paymentStatus} />
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${ORDER_STATUS_STYLES[order.status] ?? ''}`}>
-                  {order.status}
-                </span>
-                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${PAYMENT_STATUS_STYLES[order.paymentStatus] ?? ''}`}>
-                  {order.paymentStatus}
-                </span>
-              </div>
-            </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 dark:border-gray-800 pt-4">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {order.deliveryAddress || order.customerEmail || 'Delivery details pending'}
-              </p>
-              <p className="text-base font-semibold text-gray-900 dark:text-white">
-                {new Intl.NumberFormat('en-NG', {
-                  style: 'currency',
-                  currency: order.currency || 'NGN',
-                  minimumFractionDigits: 2,
-                }).format(order.total)}
-              </p>
-            </div>
-          </Link>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 dark:border-gray-800 pt-4">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {order.deliveryAddress || order.customerEmail || 'Delivery details pending'}
+                </p>
+                <p className="text-base font-semibold text-gray-900 dark:text-white">
+                  {new Intl.NumberFormat('en-NG', {
+                    style: 'currency',
+                    currency: order.currency || 'NGN',
+                    minimumFractionDigits: 2,
+                  }).format(order.total)}
+                </p>
+              </div>
+            </Link>
+
+            {/* Only orders still waiting for the seller can be cancelled —
+                the seller hasn't started preparing them yet. */}
+            {order.status === 'PENDING' && (
+              <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+                {confirmingId === order.id ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Cancel this order? The seller hasn&apos;t started preparing it yet.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirmingId(null)}
+                        disabled={cancellingId === order.id}
+                      >
+                        Keep order
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleCancel(order)}
+                        disabled={cancellingId === order.id}
+                      >
+                        {cancellingId === order.id ? 'Cancelling...' : 'Yes, cancel order'}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfirmingId(order.id)}
+                    >
+                      Cancel order
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         ))}
       </div>
     </div>

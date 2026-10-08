@@ -6,6 +6,7 @@ import axiosInstance, { extractErrorMessage } from '@/lib/axios';
 import { LoadingState, EmptyState, ErrorState } from '@/components/dashboard/shared/StateComponents';
 import { showToast } from '@/lib/notifications/toast';
 import { cn } from '@/lib/utils';
+import { Copy } from 'lucide-react';
 
 interface WaitlistEntry {
   id: string;
@@ -22,6 +23,7 @@ interface WaitlistStats {
   waiting: number;
   invited: number;
   approved: number;
+  rejected: number;
 }
 
 const STATUS_FILTERS = ['ALL', 'WAITING', 'INVITED', 'APPROVED', 'REJECTED'] as const;
@@ -60,11 +62,12 @@ export default function SuperAdminWaitlistPage() {
       return res.data?.data as WaitlistEntry[];
     }});
 
-  const updateStatus = useCallback(async (id: string, status: string) => {
+  const updateStatus = useCallback(async (id: string, status: string, confirmMessage?: string) => {
+    if (confirmMessage && !window.confirm(confirmMessage)) return;
     setUpdatingId(id);
     try {
       await axiosInstance.put(`/api/v1/super-admin/waitlist/${id}/status?status=${status}`);
-      showToast('success', `Entry marked as ${status}.`);
+      showToast('success', `Entry marked as ${status.charAt(0) + status.slice(1).toLowerCase()}.`);
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'waitlist'] });
       refetchStats();
     } catch (err) {
@@ -74,11 +77,21 @@ export default function SuperAdminWaitlistPage() {
     }
   }, [queryClient, refetchStats]);
 
+  const copyEmail = useCallback(async (email: string) => {
+    try {
+      await navigator.clipboard.writeText(email);
+      showToast('success', 'Email copied.');
+    } catch {
+      showToast('error', 'Could not copy the email.');
+    }
+  }, []);
+
   const statCards = [
     { label: 'Total', value: stats?.total ?? 0, color: 'bg-blue-50 text-blue-700' },
     { label: 'Waiting', value: stats?.waiting ?? 0, color: 'bg-amber-50 text-amber-700' },
     { label: 'Invited', value: stats?.invited ?? 0, color: 'bg-indigo-50 text-indigo-700' },
     { label: 'Approved', value: stats?.approved ?? 0, color: 'bg-emerald-50 text-emerald-700' },
+    { label: 'Rejected', value: stats?.rejected ?? 0, color: 'bg-red-50 text-red-700' },
   ];
 
   if (isLoading || statsLoading) return <LoadingState message="Loading waitlist..." />;
@@ -93,7 +106,7 @@ export default function SuperAdminWaitlistPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {statCards.map((s) => (
           <div key={s.label} className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5">
             <p className={cn('inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold', s.color)}>{s.label}</p>
@@ -140,7 +153,22 @@ export default function SuperAdminWaitlistPage() {
                   <tr key={entry.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                     <td className="py-3 px-4">
                       <p className="font-medium text-gray-900 dark:text-white">{entry.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{entry.email}</p>
+                      <div className="flex items-center gap-1.5">
+                        <a
+                          href={`mailto:${entry.email}`}
+                          className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+                        >
+                          {entry.email}
+                        </a>
+                        <button
+                          onClick={() => copyEmail(entry.email)}
+                          title="Copy email address"
+                          aria-label={`Copy email address for ${entry.name}`}
+                          className="rounded p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
                     </td>
                     <td className="py-3 px-4 text-gray-600 dark:text-gray-400">
                       {entry.businessName || '—'}
@@ -158,33 +186,53 @@ export default function SuperAdminWaitlistPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      {entry.status === 'WAITING' && (
-                        <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        {entry.status === 'WAITING' && (
+                          <>
+                            <button
+                              onClick={() => updateStatus(entry.id, 'INVITED', `Invite ${entry.name}? We'll email them a sign-up link.`)}
+                              disabled={updatingId === entry.id}
+                              className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                            >
+                              Invite
+                            </button>
+                            <button
+                              onClick={() => updateStatus(entry.id, 'REJECTED', `Reject ${entry.name}? They'll stay off the list.`)}
+                              disabled={updatingId === entry.id}
+                              className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                        {entry.status === 'INVITED' && (
+                          <>
+                            <button
+                              onClick={() => updateStatus(entry.id, 'APPROVED', `Approve ${entry.name}? Their account will be ready to use.`)}
+                              disabled={updatingId === entry.id}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => updateStatus(entry.id, 'REJECTED', `Reject ${entry.name}? They'll stay off the list.`)}
+                              disabled={updatingId === entry.id}
+                              className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                        {(entry.status === 'INVITED' || entry.status === 'APPROVED' || entry.status === 'REJECTED') && (
                           <button
-                            onClick={() => updateStatus(entry.id, 'INVITED')}
-                            disabled={updatingId === entry.id}
-                            className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                          >
-                            Invite
-                          </button>
-                          <button
-                            onClick={() => updateStatus(entry.id, 'REJECTED')}
+                            onClick={() => updateStatus(entry.id, 'WAITING', `Move ${entry.name} back to the waiting list?`)}
                             disabled={updatingId === entry.id}
                             className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
                           >
-                            Reject
+                            Reopen
                           </button>
-                        </div>
-                      )}
-                      {entry.status === 'INVITED' && (
-                        <button
-                          onClick={() => updateStatus(entry.id, 'APPROVED')}
-                          disabled={updatingId === entry.id}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                        >
-                          Approve
-                        </button>
-                      )}
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

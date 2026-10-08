@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useCurrentStoreId } from '@/hooks/useCurrentStore';
 import { useAIConfig, useToggleAI } from '@/features/dashboard/hooks/useAI';
 import { LoadingState, ErrorState, EmptyState } from '@/components/dashboard/shared/StateComponents';
@@ -16,7 +17,8 @@ const statusColors: Record<AIStatus, string> = {
   [AIStatus.PENDING]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'};
 
 export default function AIPage() {
-  const { storeId } = useCurrentStoreId();
+  const router = useRouter();
+  const { storeId, isLoading: storesLoading } = useCurrentStoreId();
   const { data: aiConfig, isLoading, error, refetch } = useAIConfig(storeId ?? '');
   const toggleMutation = useToggleAI();
   const [aiLoading, setAiLoading] = useState<string | null>(null);
@@ -27,9 +29,22 @@ export default function AIPage() {
     toggleMutation.mutate({ storeId, enabled: !aiConfig.enabled });
   };
 
-  if (isLoading) return <LoadingState message="Loading AI configuration..." />;
-  if (error) return <ErrorState title="Failed to load AI configuration" onRetry={refetch} />;
-  if (!aiConfig) return <EmptyState title="AI not configured" description="Set up Carticom AI to get started." />;
+  if (isLoading || storesLoading) return <LoadingState message="Loading AI assistant settings..." />;
+  if (error) return <ErrorState title="We couldn't load your AI assistant settings" onRetry={refetch} />;
+  if (!storeId) return (
+    <EmptyState
+      title="Set up your shop first"
+      description="You need a shop before the AI assistant can be switched on. It only takes a few minutes."
+      action={{ label: 'Set up my shop', onClick: () => router.push('/onboarding') }}
+    />
+  );
+  if (!aiConfig) return (
+    <EmptyState
+      title="This feature isn't switched on yet"
+      description="The AI assistant isn't available for your shop yet. Contact support and we'll set it up with you."
+      action={{ label: 'Contact support', onClick: () => router.push('/dashboard/support') }}
+    />
+  );
 
   const { enabled, status, usage, provider, model, settings } = aiConfig;
 
@@ -52,7 +67,7 @@ export default function AIPage() {
       <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">AI Configuration</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">AI assistant settings</h2>
             <p className="text-sm text-gray-500">
               {provider} — {model}
             </p>

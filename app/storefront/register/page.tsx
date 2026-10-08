@@ -6,10 +6,10 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function StorefrontCustomerRegisterPage() {
+function StorefrontCustomerRegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const storeId = searchParams.get('storeId') ?? '';
@@ -21,5 +21,19 @@ export default function StorefrontCustomerRegisterPage() {
 
   return (
     <div className="py-12 text-center text-sm text-gray-500">Loading…</div>
+  );
+}
+
+// Next 16 requires any component calling useSearchParams to sit inside a
+// Suspense boundary so the page can be prerendered statically.
+export default function StorefrontCustomerRegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-12 text-center text-sm text-gray-500">Loading…</div>
+      }
+    >
+      <StorefrontCustomerRegisterContent />
+    </Suspense>
   );
 }

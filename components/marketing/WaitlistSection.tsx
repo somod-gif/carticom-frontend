@@ -80,8 +80,8 @@ export function WaitlistSection() {
 
           <p className="mt-4 text-xs text-gray-400">
             Already on the list?{' '}
-            <Link href="/waitlist" className="font-medium text-blue-600 hover:underline">
-              Manage your spot
+            <Link href="/waitlist#check" className="font-medium text-blue-600 hover:underline">
+              Check your spot
             </Link>
           </p>
         </motion.div>

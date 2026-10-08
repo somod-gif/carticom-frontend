@@ -4,6 +4,7 @@ import { useRef, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Upload, X, Loader2 } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
+import { showToast } from '@/lib/notifications/toast';
 
 interface FileUploadProps {
   accept?: string;
@@ -11,6 +12,8 @@ interface FileUploadProps {
   onUploaded: (url: string) => void;
   currentUrl?: string;
   label?: string;
+  /** Returns a plain-language error message when the file is not allowed, or null when it is. */
+  validateFile?: (file: File) => string | null;
 }
 
 export function FileUpload({
@@ -19,6 +22,7 @@ export function FileUpload({
   onUploaded,
   currentUrl,
   label,
+  validateFile,
 }: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(currentUrl ?? null);
@@ -50,14 +54,26 @@ export function FileUpload({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) handleUpload(file);
+    if (!file) return;
+    const validationError = validateFile?.(file);
+    if (validationError) {
+      showToast('error', validationError);
+      return;
+    }
+    handleUpload(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) handleUpload(file);
+    if (!file) return;
+    const validationError = validateFile?.(file);
+    if (validationError) {
+      showToast('error', validationError);
+      return;
+    }
+    handleUpload(file);
   };
 
   const handleDragOver = (e: React.DragEvent) => {

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, Bell, ChevronDown, User, Settings, LogOut} from 'lucide-react';
+  Bell, ChevronDown, User, Settings, LogOut} from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { MobileToggle } from './Sidebar';
@@ -15,6 +15,11 @@ interface TopNavbarProps {
   onToggleSidebar: () => void;
   isSidebarCollapsed: boolean;
 }
+
+// Friendlier names for pages whose URL segment reads like a folder name.
+const PATH_LABEL_OVERRIDES: Record<string, string> = {
+  '/dashboard/storefront': 'Design your shop',
+};
 
 export function TopNavbar({ onToggleSidebar, isSidebarCollapsed }: TopNavbarProps) {
   const pathname = usePathname();
@@ -48,36 +53,36 @@ export function TopNavbar({ onToggleSidebar, isSidebarCollapsed }: TopNavbarProp
             )}
           </div>
           <nav className="hidden md:flex items-center gap-1.5 text-sm text-muted-foreground" aria-label="Breadcrumb">
-            {segments.map((seg, i) => (
-              <React.Fragment key={seg}>
-                {i > 0 && <span className="text-muted-foreground/50">/</span>}
-                <span className={cn(
-                  i === segments.length - 1
-                    ? 'text-foreground font-medium'
-                    : 'text-muted-foreground'
-                )}>
-                  {seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' ')}
-                </span>
-              </React.Fragment>
-            ))}
+            {segments.map((seg, i) => {
+              const isLast = i === segments.length - 1;
+              const defaultLabel = seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' ');
+              const label =
+                (isLast && PATH_LABEL_OVERRIDES[pathname.replace(/\/$/, '')]) || defaultLabel;
+              return (
+                <React.Fragment key={seg}>
+                  {i > 0 && <span className="text-muted-foreground/50">/</span>}
+                  <span
+                    className={cn(
+                      isLast ? 'text-foreground font-medium' : 'text-muted-foreground'
+                    )}
+                  >
+                    {label}
+                  </span>
+                </React.Fragment>
+              );
+            })}
           </nav>
         </div>
 
         <div className="flex items-center gap-1.5 md:gap-2">
-          <div className="hidden sm:block relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-            <input
-              type="search"
-              placeholder="Search..."
-              className="h-8 w-44 lg:w-56 rounded-lg border border-input bg-muted/30 pl-8 pr-3 text-xs outline-none focus:border-ring focus:bg-background transition-all"
-              aria-label="Search"
-            />
-          </div>
-
-          <button className="relative p-2 rounded-lg hover:bg-accent transition-colors" aria-label="Notifications">
+          <Link
+            href="/dashboard/notifications"
+            className="relative p-2 rounded-lg hover:bg-accent transition-colors"
+            aria-label="Notifications"
+          >
             <Bell className="h-4 w-4 text-muted-foreground" />
             <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-destructive ring-1 ring-background" />
-          </button>
+          </Link>
 
           <div className="relative" ref={profileRef}>
             <button

@@ -1,58 +1,106 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { useMyStores, useUpdateStore } from '@/features/onboarding/hooks/useOnboarding';
 import { LoadingState, EmptyState, ErrorState } from '@/components/dashboard/shared/StateComponents';
-import { Globe, Eye, Upload, ExternalLink, Check, ChevronDown, Copy, Palette, Type, Link2, Layout } from 'lucide-react';
+import { Globe, Eye, ExternalLink, Copy, Palette, Wallet } from 'lucide-react';
 import { showToast } from '@/lib/notifications/toast';
-import { getTemplateIcon, getTemplatesForCategory } from '@/features/templates/registry';
-import { BUSINESS_CATEGORIES } from '@/features/templates/types';
-import axiosInstance from '@/lib/axios';
-import { cn } from '@/lib/utils';
-import { FileUpload } from '@/components/ui/FileUpload';
+import { getTemplate } from '@/features/templates/registry';
+import axiosInstance, { extractErrorMessage } from '@/lib/axios';
+import { Button } from '@/components/ui/button';
+
+// ─── Payouts ─────────────────────────────────────────────────
+// Read-only summary of the store's completed payments, straight from
+// GET /api/v1/stores/{id}/payouts. Nothing here is estimated.
+
+type PayoutTransaction = {
+  id: number;
+  orderId: number | null;
+  amount: number;
+  currency: string | null;
+  status: string;
+  paidAt: string;
+};
+
+type PayoutSummary = {
+  totalPaidOut: number;
+  currency: string | null;
+  transactionCount: number;
+  firstPayoutDate: string | null;
+  lastPayoutDate: string | null;
+  recentTransactions: PayoutTransaction[];
+};
+
+function formatPayoutMoney(amount: number, currency?: string | null) {
+  const code = currency || 'NGN';
+  try {
+    return new Intl.NumberFormat('en-NG', { style: 'currency', currency: code, minimumFractionDigits: 0 }).format(amount);
+  } catch {
+    // A store can carry a currency code Intl doesn't know — show it plainly
+    // rather than hiding the amount.
+    return `${code} ${amount.toLocaleString()}`;
+  }
+}
+
+function formatPayoutDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+/** Backend status codes in plain language. */
+function plainStatus(status: string) {
+  const map: Record<string, string> = {
+    PAID: 'Paid',
+    PENDING: 'Pending',
+    FAILED: 'Failed',
+    REFUNDED: 'Refunded',
+    PARTIALLY_REFUNDED: 'Partially refunded',
+  };
+  return map[status] ?? status;
+}
 
 export default function StorePage() {
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const { data: stores, isLoading, error, refetch } = useMyStores();
   const updateStore = useUpdateStore();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const store = stores?.[0] ?? null;
+  const storeId = store?.id;
+
+  const {
+    data: payouts,
+    isLoading: payoutsLoading,
+    error: payoutsError,
+    refetch: refetchPayouts,
+  } = useQuery({
+    queryKey: ['payouts', storeId ?? ''],
+    queryFn: () =>
+      axiosInstance
+        .get<{ success: boolean; data: PayoutSummary }>(`/api/v1/stores/${storeId}/payouts`)
+        .then((res) => res.data.data),
+    enabled: !!storeId,
+  });
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
 const [editing, setEditing] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [seoTitle, setSeoTitle] = useState('');
-  const [seoDesc, setSeoDesc] = useState('');
-  const [primaryColor, setPrimaryColor] = useState('#4f46e5');
-  const [secondaryColor, setSecondaryColor] = useState('#7c3aed');
-  const [fontFamily, setFontFamily] = useState('Inter');
-  const [facebookUrl, setFacebookUrl] = useState('');
-  const [instagramUrl, setInstagramUrl] = useState('');
-  const [twitterUrl, setTwitterUrl] = useState('');
-  const [whatsappNumber, setWhatsappNumber] = useState('');
 
   const [syncedStore, setSyncedStore] = useState<typeof store>(null);
 
-  useEffect(() => {
-    if (store && store !== syncedStore) {
-      setSyncedStore(store);
-      setName(store.name ?? '');
-      setDescription(store.description ?? '');
-      setSeoTitle(store.name ?? '');
-      setSeoDesc(store.description ?? '');
-      setPrimaryColor(store.primaryColor ?? '#4f46e5');
-      setSecondaryColor(store.secondaryColor ?? '#7c3aed');
-      setFontFamily(store.fontFamily ?? 'Inter');
-      setFacebookUrl(store.facebookUrl ?? '');
-      setInstagramUrl(store.instagramUrl ?? '');
-      setTwitterUrl(store.twitterUrl ?? '');
-      setWhatsappNumber(store.whatsappNumber ?? '');
-    }
-  }, [store, syncedStore]);
+  // Reset the local form when the store first arrives (React's documented
+  // "adjust state when a prop changes" pattern — guarded, runs during render
+  // instead of an effect that would cascade).
+  if (store && store !== syncedStore) {
+    setSyncedStore(store);
+    setName(store.name ?? '');
+    setDescription(store.description ?? '');
+  }
 
 const handleSave = () => {
     if (!store) return;
@@ -62,89 +110,19 @@ const handleSave = () => {
     );
   };
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !store) return;
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      await axiosInstance.post(`/api/v1/stores/${store.id}/logo`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }});
-      showToast('success', 'Logo uploaded successfully');
-      refetch();
-    } catch {
-      showToast('error', 'Failed to upload logo');
-    }
-  };
-
-  const handleBannerUploaded = async (url: string) => {
-    if (!store) return;
-    try {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const ext = url.split('.').pop() || 'png';
-      const file = new File([blob], `banner.${ext}`, { type: blob.type });
-      const formData = new FormData();
-      formData.append('file', file);
-      await axiosInstance.post(`/api/v1/stores/${store.id}/banner`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      showToast('success', 'Banner uploaded successfully');
-      refetch();
-    } catch {
-      showToast('error', 'Failed to upload banner');
-    }
-  };
-
-  const handleSaveSeo = async () => {
-    if (!store) return;
-    try {
-      await updateStore.mutateAsync({
-        id: store.id,
-        data: { seoTitle, seoDescription: seoDesc },
-      });
-      showToast('success', 'SEO settings saved');
-      refetch();
-    } catch {
-      showToast('error', 'Failed to save SEO settings');
-    }
-  };
-
-  const handleSaveColors = async () => {
-    if (!store) return;
-    try {
-      await updateStore.mutateAsync({
-        id: store.id,
-        data: { primaryColor, secondaryColor, fontFamily },
-      });
-      showToast('success', 'Colors & font saved');
-      refetch();
-    } catch {
-      showToast('error', 'Failed to save colors & font');
-    }
-  };
-
-  const handleSaveSocialLinks = async () => {
-    if (!store) return;
-    try {
-      await updateStore.mutateAsync({
-        id: store.id,
-        data: { facebookUrl, instagramUrl, twitterUrl, whatsappNumber },
-      });
-      showToast('success', 'Social links saved');
-      refetch();
-    } catch {
-      showToast('error', 'Failed to save social links');
-    }
-  };
-
   const handleTogglePublish = async () => {
     if (!store) return;
     setPublishing(true);
     try {
       const action = store.status === 'ACTIVE' ? 'unpublish' : 'publish';
       await axiosInstance.patch(`/api/v1/stores/${store.id}/${action}`);
-      showToast('success', `Store ${action === 'publish' ? 'published' : 'unpublished'} successfully`);
+      if (action === 'publish') {
+        showToast('success', 'Store published successfully', {
+          description: `Customers can now open your shop at ${window.location.origin}/store/${store.slug}`});
+      } else {
+        showToast('success', 'Store unpublished successfully', {
+          description: 'Your shop link no longer opens the storefront. Publish again whenever you like.'});
+      }
       refetch();
     } catch {
       showToast('error', 'Failed to update store status');
@@ -162,11 +140,26 @@ const handleSave = () => {
   }
 
   if (!store) {
-    return <EmptyState title="No store found" description="You don't have any stores yet." />;
+    return (
+      <EmptyState
+        title="Set up your shop first"
+        description="You need a shop before you can manage its settings or publish it. It only takes a few minutes."
+        action={{ label: 'Set up my shop', onClick: () => router.push('/onboarding') }}
+      />
+    );
   }
 
   const isPublished = store.status === 'ACTIVE';
   const storefrontUrl = `${window.location.origin}/store/${store.slug}`;
+
+  const payoutCount = payouts?.transactionCount ?? 0;
+  const hasPayouts = payoutCount > 0;
+  const payoutRange =
+    payouts?.firstPayoutDate && payouts?.lastPayoutDate
+      ? payouts.firstPayoutDate === payouts.lastPayoutDate
+        ? formatPayoutDate(payouts.firstPayoutDate)
+        : `${formatPayoutDate(payouts.firstPayoutDate)} – ${formatPayoutDate(payouts.lastPayoutDate)}`
+      : null;
 
   return (
     <div className="space-y-6">
@@ -177,7 +170,14 @@ const handleSave = () => {
             Manage your store settings and branding
           </p>
         </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/dashboard/storefront"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <Palette className="h-4 w-4" />
+              Design Storefront
+            </Link>
             {isPublished && (
               <a
                 href={storefrontUrl}
@@ -283,6 +283,10 @@ const handleSave = () => {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Currency</label>
                 <p className="mt-1 text-sm text-gray-900 dark:text-white">{store.currency}</p>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Business Owner</label>
+                <p className="mt-1 text-sm text-gray-900 dark:text-white">{user?.fullName || 'Not set'}</p>
+              </div>
               {isPublished && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Store URL</label>
@@ -295,236 +299,118 @@ const handleSave = () => {
           )}
         </div>
 
+        {/* Payouts — read-only summary of this store's completed payments. */}
         <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Branding</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Logo</label>
-              <div className="mt-2 flex items-start gap-4">
-                <div className="relative w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center overflow-hidden shrink-0">
-                  {store.logoUrl ? (
-                    <Image src={store.logoUrl} alt="Store logo" fill unoptimized className="object-cover" />
-                  ) : (
-                    <span className="text-xs text-gray-500">No logo</span>
-                  )}
-                </div>
-                <div>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Upload Logo
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleLogoUpload}
-                  />
-                  <p className="text-xs text-gray-500 mt-2">Recommended: 512x512px, PNG or JPG</p>
-                </div>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Banner</label>
-              <div className="mt-2">
-                <FileUpload
-                  folder="banners"
-                  onUploaded={handleBannerUploaded}
-                  currentUrl={store.bannerUrl}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Business Owner</label>
-              <p className="mt-1 text-sm text-gray-900 dark:text-white">{user?.fullName || 'Not set'}</p>
-            </div>
+          <div className="flex items-center gap-2 mb-2">
+            <Wallet className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Payouts</h2>
           </div>
-        </div>
 
-        {/* Colors & Fonts */}
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Palette className="h-5 w-5" /> Colors & Fonts
-          </h2>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Primary Color</label>
-                <div className="flex items-center gap-2">
-                  <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-11 h-11 rounded border border-gray-300 dark:border-gray-700 cursor-pointer" />
-                  <input type="text" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="flex-1 h-11 px-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-mono" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Secondary Color</label>
-                <div className="flex items-center gap-2">
-                  <input type="color" value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} className="w-11 h-11 rounded border border-gray-300 dark:border-gray-700 cursor-pointer" />
-                  <input type="text" value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} className="flex-1 h-11 px-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-mono" />
-                </div>
-              </div>
-            </div>
+          {payoutsLoading ? (
+            <p className="text-sm text-gray-600 dark:text-gray-400">Loading your payouts...</p>
+          ) : payoutsError ? (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-                <Type className="h-4 w-4" /> Font Family
-              </label>
-              <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="w-full h-11 px-4 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
-                <option value="Inter">Inter</option>
-                <option value="Roboto">Roboto</option>
-                <option value="Open Sans">Open Sans</option>
-                <option value="Lato">Lato</option>
-                <option value="Poppins">Poppins</option>
-                <option value="Montserrat">Montserrat</option>
-                <option value="Raleway">Raleway</option>
-                <option value="Nunito">Nunito</option>
-                <option value="Playfair Display">Playfair Display</option>
-                <option value="Merriweather">Merriweather</option>
-              </select>
+              <p className="text-sm text-red-600 dark:text-red-400">We couldn&apos;t load your payouts.</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{extractErrorMessage(payoutsError)}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={() => refetchPayouts()}
+              >
+                Try again
+              </Button>
             </div>
-            <button onClick={handleSaveColors} disabled={updateStore.isPending} className="px-4 py-2 h-11 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm">
-              Save Colors &amp; Font
-            </button>
-          </div>
-        </div>
-
-        {/* Social Links */}
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Link2 className="h-5 w-5" /> Social Media Connect
-          </h2>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Facebook URL</label>
-                <input type="url" inputMode="url" placeholder="https://facebook.com/yourpage" value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} className="w-full h-11 px-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instagram URL</label>
-                <input type="url" inputMode="url" placeholder="https://instagram.com/yourhandle" value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} className="w-full h-11 px-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">X (Twitter) URL</label>
-                <input type="url" inputMode="url" placeholder="https://x.com/yourhandle" value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} className="w-full h-11 px-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">WhatsApp Number</label>
-                <input type="tel" inputMode="tel" placeholder="+234 801 234 5678" value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} className="w-full h-11 px-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Shown as social icons in your storefront footer. Leave blank to hide an icon.
-            </p>
-            <button onClick={handleSaveSocialLinks} disabled={updateStore.isPending} className="px-4 py-2 h-11 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm">
-              Save Social Links
-            </button>
-          </div>
-        </div>
-
-        {/* Template Selection */}
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Storefront Template</h2>
-          <div className="space-y-4">
-            {BUSINESS_CATEGORIES.map((cat) => {
-              const catTemplates = getTemplatesForCategory(cat.value);
-              if (catTemplates.length === 0) return null;
-              return (
-                <details key={cat.value} className="group rounded-2xl border border-gray-200 dark:border-gray-700 open:bg-gray-50 dark:open:bg-gray-800/50 transition-colors">
-                  <summary className="flex items-center justify-between px-4 py-3 cursor-pointer list-none text-sm font-semibold text-gray-900 dark:text-white">
-                    <span className="capitalize">{cat.label.toLowerCase()}</span>
-                    <ChevronDown className="h-4 w-4 text-gray-400 group-open:rotate-180 transition-transform" />
-                  </summary>
-                  <div className="px-4 pb-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {catTemplates.map((t) => {
-                      const Icon = getTemplateIcon(t.id);
-                      const isActive = store.template === t.id || (!store.template && t.id === catTemplates[0].id);
-                      return (
-                        <button
-                          key={t.id}
-                          onClick={async () => {
-                            try {
-                              await updateStore.mutateAsync({ id: store.id, data: { template: t.id } });
-                              showToast('success', `Template updated to ${t.name}`);
-                              refetch();
-                            } catch {
-                              showToast('error', 'Failed to update template');
-                            }
-                          }}
-                          disabled={updateStore.isPending}
-                          className={cn(
-                            'relative flex flex-col items-center gap-2 p-3 rounded-2xl border-2 text-center transition-all',
-                            isActive
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-sm'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm'
-                          )}
-                        >
-                          {isActive && (
-                            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
-                              <Check className="h-2.5 w-2.5 text-white" />
-                            </div>
-                          )}
-                          <Icon className={cn('h-5 w-5', isActive ? 'text-blue-600' : 'text-gray-600')} />
-                          <div>
-                            <p className="text-xs font-semibold text-gray-900 dark:text-white">{t.name}</p>
-                            <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">{t.description.slice(0, 50)}...</p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </details>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* SEO Settings */}
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 lg:col-span-2">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">SEO & Preview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          ) : hasPayouts ? (
             <div className="space-y-4">
-<div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">SEO Title</label>
-                <input
-                  type="text"
-                  value={seoTitle}
-                  onChange={(e) => setSeoTitle(e.target.value)}
-                  maxLength={60}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  placeholder="Store SEO title"
-                />
-              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">SEO Description</label>
-                <textarea
-                  value={seoDesc}
-                  onChange={(e) => setSeoDesc(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  rows={3}
-                  placeholder="Store SEO description"
-                />
-              </div>
-              <div>
-                <button
-                  type="button"
-                  onClick={handleSaveSeo}
-                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                >
-                  Save SEO
-                </button>
-                <p className="text-xs text-gray-500 mt-2">
-                  Your storefront already publishes your store name and description for search engines.
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total paid out</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+                  {formatPayoutMoney(Number(payouts?.totalPaidOut ?? 0), payouts?.currency)}
+                </p>
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                  From {payoutCount} {payoutCount === 1 ? 'transaction' : 'transactions'}
+                  {payoutRange ? ` · ${payoutRange}` : ''}
                 </p>
               </div>
+              <div className="space-y-2">
+                {payouts?.recentTransactions.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 dark:border-gray-800 px-3 py-2"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {formatPayoutMoney(Number(tx.amount), tx.currency ?? payouts?.currency)}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{formatPayoutDate(tx.paidAt)}</p>
+                    </div>
+                    <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                      {plainStatus(tx.status)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-              <p className="text-xs font-medium text-gray-500 uppercase mb-2">Google Preview</p>
-              <p className="text-sm text-blue-700 dark:text-blue-400 truncate">{seoTitle || store.name} — Carticom</p>
-              <p className="text-xs text-green-700 dark:text-green-400 truncate">{storefrontUrl}</p>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{seoDesc || store.description || 'Shop on Carticom'}</p>
+          ) : (
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              No payouts yet — they&apos;ll appear here once customers start paying.
+            </p>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={() => router.push('/dashboard/support')}
+          >
+            Contact support
+          </Button>
+        </div>
+
+        {/* Storefront design */}
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 lg:col-span-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Storefront design</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Colours, logo, fonts, sections and how you appear on Google are all edited in one place —
+            the Storefront Studio.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-4">
+            <div>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Look</p>
+              <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                {getTemplate(store.template ?? '')?.name ?? 'Default'}
+              </p>
             </div>
+            <div>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Colours</p>
+              <div className="mt-1 flex items-center gap-2">
+                <span
+                  className="w-6 h-6 rounded-full border border-gray-200 dark:border-gray-700"
+                  style={{ backgroundColor: store.primaryColor || '#4f46e5' }}
+                />
+                <span
+                  className="w-6 h-6 rounded-full border border-gray-200 dark:border-gray-700"
+                  style={{ backgroundColor: store.secondaryColor || '#7c3aed' }}
+                />
+              </div>
+            </div>
+            {store.logoUrl && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Logo</p>
+                <div className="relative mt-1 w-10 h-10 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <Image src={store.logoUrl} alt="Store logo" fill unoptimized className="object-cover" />
+                </div>
+              </div>
+            )}
           </div>
+          <Link
+            href="/dashboard/storefront"
+            className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700"
+          >
+            <Palette className="h-4 w-4" />
+            Open Storefront Studio
+          </Link>
         </div>
       </div>
     </div>

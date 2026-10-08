@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useCurrentStoreId } from '@/hooks/useCurrentStore';
 import Image from 'next/image';
 import { useCustomers, useUpdateCustomer } from '@/features/dashboard/hooks/useCustomers';
@@ -35,7 +36,8 @@ function exportCustomersCsv(customers: CustomerDto[]) {
 }
 
 export default function CustomersPage() {
-  const { storeId } = useCurrentStoreId();
+  const router = useRouter();
+  const { storeId, isLoading: storesLoading } = useCurrentStoreId();
   const [search, setSearch] = useState('');
   const [view, setView] = useViewPreference();
   const updateCustomer = useUpdateCustomer();
@@ -89,8 +91,15 @@ export default function CustomersPage() {
     );
   }, [customers, search]);
 
-  if (!storeId || isLoading) return <LoadingState message="Loading customers..." />;
+  if (isLoading || storesLoading) return <LoadingState message="Loading customers..." />;
   if (error) return <ErrorState title="Failed to load customers" onRetry={refetch} />;
+  if (!storeId) return (
+    <EmptyState
+      title="Set up your shop first"
+      description="You need a shop before customers can buy from you. It only takes a few minutes."
+      action={{ label: 'Set up my shop', onClick: () => router.push('/onboarding') }}
+    />
+  );
   if (!customers?.length) return (
     <div className="space-y-6">
       <div>
@@ -100,7 +109,8 @@ export default function CustomersPage() {
       <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
         <EmptyState
           title="No customers yet"
-          description="Customers will appear here after their first purchase."
+          description="Customers will appear here after their first purchase. Share your shop link so people can find you."
+          action={{ label: 'Share your shop', onClick: () => router.push('/dashboard/storefront') }}
         />
       </div>
     </div>

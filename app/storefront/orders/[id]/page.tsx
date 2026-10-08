@@ -3,30 +3,40 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Package, LogIn, MapPin, Mail, Phone, CreditCard, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Package, LogIn, MapPin, Mail, Phone, CreditCard } from 'lucide-react';
 import { checkoutApi } from '@/features/onboarding/services/onboarding.service';
 import type { OrderDto } from '@/features/onboarding/types';
 import { useAuthStore } from '@/features/auth/store/auth.store';
-import { getCustomerToken } from '@/features/storefront/services/customer-auth.service';
+import { useOrderReturns, useRequestReturn } from '@/features/storefront/hooks/useReturns';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { LoadingState, EmptyState, ErrorState } from '@/components/dashboard/shared/StateComponents';
+import { OrderStatusBadge, PaymentStatusBadge } from '@/components/storefront/OrderStatusBadge';
 import { showToast } from '@/lib/notifications/toast';
 import { extractErrorMessage } from '@/lib/axios';
-import { cn } from '@/lib/utils';
 
-const ORDER_STATUS_STYLES: Record<string, string> = {
-  PENDING: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
-  PROCESSING: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
-  SHIPPED: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800',
-  DELIVERED: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
-  CANCELLED: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800'};
+const RETURN_STATUS_DEFAULT = {
+  label: 'Being reviewed',
+  copy: "Return requested — we'll be in touch. We'll review it within 2 business days and let you know the outcome.",
+};
 
-const PAYMENT_STATUS_STYLES: Record<string, string> = {
-  PENDING: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
-  PROCESSING: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
-  COMPLETED: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
-  FAILED: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
-  REFUNDED: 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'};
+/** Plain-language wording for each step of a return, so nobody has to
+ *  decode backend status codes. */
+const RETURN_STATUS_COPY: Record<string, { label: string; copy: string }> = {
+  REQUESTED: RETURN_STATUS_DEFAULT,
+  APPROVED: {
+    label: 'Approved',
+    copy: 'Good news — your return was approved. The seller will be in touch about the next steps.',
+  },
+  REJECTED: {
+    label: 'Rejected',
+    copy: "Sorry — this return wasn't approved. If you think that's a mistake, the seller's contact details are in your order confirmation email.",
+  },
+  REFUNDED: {
+    label: 'Refunded',
+    copy: 'Your refund is on its way. Depending on your bank, it can take a few days to show up.',
+  },
+};
 
 function formatPrice(order: OrderDto, value: number) {
   return new Intl.NumberFormat('en-NG', {
@@ -44,9 +54,15 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<OrderDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
-  const [refundOpen, setRefundOpen] = useState(false);
-  const [refundReason, setRefundReason] = useState('');
-  const [refundSubmitting, setRefundSubmitting] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [showReturnForm, setShowReturnForm] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
+  const {
+    data: returns = [],
+    isLoading: returnsLoading,
+    error: returnsError,
+  } = useOrderReturns(orderId, isAuthenticated && order?.status === 'DELIVERED');
+  const requestReturn = useRequestReturn(orderId);
 
   useEffect(() => {
     if (!isAuthenticated || !orderId) return;
@@ -72,6 +88,7 @@ export default function OrderDetailPage() {
       const res = await checkoutApi.cancelOrder(order.id);
       if (res.data.data) setOrder(res.data.data);
       showToast('success', 'Order cancelled.');
+      setConfirmCancel(false);
     } catch (err) {
       showToast('error', extractErrorMessage(err) || 'Failed to cancel order. Please try again.');
     } finally {
@@ -79,32 +96,23 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleRefundRequest = async () => {
-    if (!order || !refundReason.trim()) return;
-    const token = getCustomerToken();
-    if (!token) { showToast('error', 'Please sign in to request a refund.'); return; }
-    setRefundSubmitting(true);
-    try {
-      const res = await fetch('/api/v1/support/tickets', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          subject: `Refund request — Order ${order.orderNumber}`,
-          message: `Order ID: ${order.id}\nOrder Number: ${order.orderNumber}\nReason: ${refundReason.trim()}\nAmount: ${order.total} ${order.currency}`,
-        }),
-      });
-      if (!res.ok) throw new Error('Failed to submit refund request');
-      showToast('success', 'Refund request submitted. Our team will review it shortly.');
-      setRefundOpen(false);
-      setRefundReason('');
-    } catch (err) {
-      showToast('error', err instanceof Error ? err.message : 'Failed to submit refund request.');
-    } finally {
-      setRefundSubmitting(false);
+  const handleRequestReturn = (e: React.FormEvent) => {
+    e.preventDefault();
+    const reason = returnReason.trim();
+    if (!reason) {
+      showToast('error', "Please tell us what's wrong with your order.");
+      return;
     }
+    requestReturn.mutate(reason, {
+      onSuccess: () => {
+        showToast('success', "Return requested — we'll be in touch.");
+        setReturnReason('');
+        setShowReturnForm(false);
+      },
+      onError: (err) => {
+        showToast('error', extractErrorMessage(err) || "We couldn't send your return request. Please try again.");
+      },
+    });
   };
 
   if (authLoading) return <LoadingState message="Checking your account..." />;
@@ -142,7 +150,14 @@ export default function OrderDetailPage() {
   }
   if (!order) return <LoadingState message="Loading order details..." />;
 
-  const cancellable = ['PENDING', 'PROCESSING'].includes(order.status);
+  // Only orders still waiting for the seller can be cancelled.
+  const cancellable = order.status === 'PENDING';
+  // An open request (still being reviewed) wins over any older, resolved one.
+  const openReturn = returns.find((r) => r.status === 'REQUESTED') || null;
+  const latestReturn = openReturn || returns[0] || null;
+  const returnStatus = latestReturn
+    ? RETURN_STATUS_COPY[latestReturn.status] || RETURN_STATUS_DEFAULT
+    : null;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -162,12 +177,8 @@ export default function OrderDetailPage() {
               <p className="text-lg font-bold text-gray-900 dark:text-white">{order.orderNumber}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', ORDER_STATUS_STYLES[order.status] ?? '')}>
-                {order.status}
-              </span>
-              <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', PAYMENT_STATUS_STYLES[order.paymentStatus] ?? '')}>
-                {order.paymentStatus}
-              </span>
+              <OrderStatusBadge status={order.status} />
+              <PaymentStatusBadge status={order.paymentStatus} />
             </div>
           </div>
 
@@ -280,49 +291,118 @@ export default function OrderDetailPage() {
 
       {cancellable && (
         <div className="flex justify-end">
-          <Button
-            variant="destructive"
-            onClick={handleCancel}
-            disabled={cancelling}
-          >
-            {cancelling ? 'Cancelling...' : 'Cancel Order'}
-          </Button>
-        </div>
-      )}
-
-      {order.status === 'DELIVERED' && order.paymentStatus === 'COMPLETED' && (
-        <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5">
-          {refundOpen ? (
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Request a refund</h3>
-              <textarea
-                value={refundReason}
-                onChange={(e) => setRefundReason(e.target.value)}
-                rows={3}
-                placeholder="Tell us why you'd like a refund…"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+          {confirmCancel ? (
+            <div className="w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 space-y-3">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">Cancel this order?</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                The seller hasn&apos;t started preparing it yet, so it can still be cancelled.
+              </p>
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={() => { setRefundOpen(false); setRefundReason(''); }} disabled={refundSubmitting}>Cancel</Button>
-                <Button size="sm" onClick={handleRefundRequest} disabled={refundSubmitting || !refundReason.trim()}>
-                  {refundSubmitting ? 'Submitting…' : 'Submit refund request'}
+                <Button variant="ghost" size="sm" onClick={() => setConfirmCancel(false)} disabled={cancelling}>
+                  Keep order
+                </Button>
+                <Button variant="destructive" size="sm" onClick={handleCancel} disabled={cancelling}>
+                  {cancelling ? 'Cancelling...' : 'Yes, cancel order'}
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between">
+            <Button variant="destructive" onClick={() => setConfirmCancel(true)}>
+              Cancel order
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Returns — request a return on a delivered order, or follow the
+          status of one that's already been filed. */}
+      {order.status === 'DELIVERED' && (
+        <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 space-y-3">
+          <h2 className="font-semibold text-gray-900 dark:text-white">Returns</h2>
+
+          {returnsLoading ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Checking your return requests...
+            </p>
+          ) : returnsError ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              We couldn&apos;t load your return requests. Refresh the page and try again.
+            </p>
+          ) : showReturnForm ? (
+            <form onSubmit={handleRequestReturn} className="space-y-3">
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Need a refund?</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">If something wasn't right with your order, we can help.</p>
+                <label
+                  htmlFor="return-reason"
+                  className="block text-sm font-medium text-gray-900 dark:text-white mb-1.5"
+                >
+                  What went wrong?
+                </label>
+                <Textarea
+                  id="return-reason"
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  maxLength={1000}
+                  rows={4}
+                  placeholder="Tell us what went wrong with your order..."
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                  Tell us what&apos;s wrong — we&apos;ll review it within 2 business days.
+                </p>
               </div>
-              {getCustomerToken() ? (
-                <Button variant="outline" size="sm" onClick={() => setRefundOpen(true)}>
-                  <RefreshCw className="h-4 w-4 mr-1.5" />
-                  Request refund
-                </Button>
-              ) : (
-                <p className="text-xs text-gray-400">Sign in to request a refund.</p>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {returnReason.length}/1000 characters
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowReturnForm(false);
+                      setReturnReason('');
+                    }}
+                    disabled={requestReturn.isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={requestReturn.isPending || !returnReason.trim()}
+                  >
+                    {requestReturn.isPending ? 'Sending...' : 'Send request'}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          ) : latestReturn && returnStatus ? (
+            <div className="space-y-3">
+              <div className="rounded-lg bg-gray-50 dark:bg-gray-800/60 p-4 space-y-1.5">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {returnStatus.label}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-300">{returnStatus.copy}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  You said: &quot;{latestReturn.reason}&quot;
+                </p>
+              </div>
+              {!openReturn && (
+                <div className="flex justify-end">
+                  <Button variant="outline" size="sm" onClick={() => setShowReturnForm(true)}>
+                    Request a return
+                  </Button>
+                </div>
               )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Something not right with this order? Request a return and we&apos;ll take a look.
+              </p>
+              <div className="flex justify-end">
+                <Button onClick={() => setShowReturnForm(true)}>Request a return</Button>
+              </div>
             </div>
           )}
         </div>

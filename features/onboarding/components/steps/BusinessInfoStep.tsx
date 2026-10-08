@@ -10,8 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Building2, Upload, Loader2 } from 'lucide-react';
 import { businessInfoSchema, type BusinessInfoFormData } from '@/features/onboarding/schemas';
-import { useCreateStore } from '@/features/onboarding/hooks/useOnboarding';
-import { axiosInstance } from '@/lib/axios';
+import { useCreateStore, useUpdateStore, fetchExistingStore } from '@/features/onboarding/hooks/useOnboarding';
+import { axiosInstance, extractErrorMessage } from '@/lib/axios';
 import type { StoreDto } from '@/features/onboarding/types';
 
 const BUSINESS_CATEGORY_OPTIONS = [
@@ -41,17 +41,22 @@ interface BusinessInfoStepProps {
   onNext: () => void;
   onBack: () => void;
   initialData?: BusinessInfoFormData;
+  /** The seller's existing shop, if they already have one. */
+  existingStore?: StoreDto | null;
   onSave: (data: BusinessInfoFormData) => void;
   onStoreCreated: (store: StoreDto) => void;
 }
 
-export function BusinessInfoStep({ onNext, onBack, initialData, onSave, onStoreCreated }: BusinessInfoStepProps) {
+export function BusinessInfoStep({ onNext, onBack, initialData, existingStore, onSave, onStoreCreated }: BusinessInfoStepProps) {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [country, setCountry] = useState('Nigeria');
-  const [currency, setCurrency] = useState('NGN');
+  const [country, setCountry] = useState(existingStore?.country || 'Nigeria');
+  const [currency, setCurrency] = useState(
+    existingStore?.currency || COUNTRY_CURRENCY_MAP[existingStore?.country || ''] || 'NGN'
+  );
   const createStore = useCreateStore();
+  const updateStore = useUpdateStore();
 
   const {
     register,
@@ -70,41 +75,66 @@ export function BusinessInfoStep({ onNext, onBack, initialData, onSave, onStoreC
     setSubmitError(null);
     try {
       onSave(data);
-      const slug = data.businessName
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .trim()
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-');
-      const store = await createStore.mutateAsync({
-        storeName: data.businessName,
-        storeSlug: slug,
-        phone: data.phone,
-        description: data.description || undefined,
-        businessCategory: data.businessCategory,
-        email: data.email || undefined,
-        address: data.address || undefined,
-        country,
-        currency});
 
-      if (logoFile && store.id) {
+      // Ask the server which shop already exists — right before saving — so a
+      // returning seller updates their shop and can never get a duplicate.
+      const existing = await fetchExistingStore();
+
+      let saved: StoreDto;
+      if (existing) {
+        // Existing shop: save into it. The web address is left untouched so
+        // links people already shared keep working.
+        saved = await updateStore.mutateAsync({
+          id: existing.id,
+          data: {
+            storeName: data.businessName,
+            phone: data.phone,
+            description: data.description || undefined,
+            businessCategory: data.businessCategory,
+            email: data.email || undefined,
+            address: data.address || undefined,
+            country,
+            currency},
+        });
+      } else {
+        const slug = data.businessName
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .trim()
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-');
+        const { store } = await createStore.mutateAsync({
+          storeName: data.businessName,
+          storeSlug: slug,
+          phone: data.phone,
+          description: data.description || undefined,
+          businessCategory: data.businessCategory,
+          email: data.email || undefined,
+          address: data.address || undefined,
+          country,
+          currency});
+        saved = store;
+      }
+
+      if (logoFile && saved.id) {
         const formData = new FormData();
         formData.append('file', logoFile);
-        await axiosInstance.post(`/api/v1/stores/${store.id}/logo`, formData, {
+        await axiosInstance.post(`/api/v1/stores/${saved.id}/logo`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }});
       }
-      if (bannerFile && store.id) {
+      if (bannerFile && saved.id) {
         const formData = new FormData();
         formData.append('file', bannerFile);
-        await axiosInstance.post(`/api/v1/stores/${store.id}/banner`, formData, {
+        await axiosInstance.post(`/api/v1/stores/${saved.id}/banner`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }});
       }
 
-      onStoreCreated(store);
+      onStoreCreated(saved);
       onNext();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to save. Please try again.';
-      setSubmitError(msg);
+      setSubmitError(
+        extractErrorMessage(err) || 'We could not save your business details. Please try again.'
+      );
     }
   };
 

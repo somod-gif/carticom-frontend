@@ -8,36 +8,45 @@ const TOUR_STEPS = [
   {
     title: 'Welcome to Your Dashboard',
     description: 'This is your command center. From here you can manage everything about your store.',
-    target: 'dashboard-overview',
     icon: '🏠',
   },
   {
     title: 'Manage Your Store',
     description: 'Update your store branding, template, and settings from the Store page.',
-    target: 'sidebar-store',
     icon: '🏪',
   },
   {
     title: 'Add Products',
     description: 'Start adding products to your store. You can upload images, set prices, and manage inventory.',
-    target: 'sidebar-products',
     icon: '📦',
+  },
+  {
+    title: 'My Storefront',
+    description: 'Design your shop with a live preview. Pick a template, choose your colors, and watch your shop update as you make changes.',
+    icon: '🎨',
   },
   {
     title: 'View Orders',
     description: 'Track all incoming orders and manage fulfillment from the Orders page.',
-    target: 'sidebar-orders',
     icon: '🛒',
   },
   {
     title: 'You\'re All Set!',
     description: 'Start building your online store. You can always come back to this tour from Settings.',
-    target: null,
     icon: '🚀',
   },
 ];
 
 const TOUR_KEY = 'carticom-dashboard-tour-seen';
+
+/**
+ * Clears the tour-seen flag and reloads the page so the tour plays again.
+ * Settings may call this to let sellers replay the tour.
+ */
+export function replayDashboardTour() {
+  localStorage.removeItem(TOUR_KEY);
+  window.location.reload();
+}
 
 export function DashboardTour() {
   const [show, setShow] = useState(false);

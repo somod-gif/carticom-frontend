@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCurrentStoreId } from '@/hooks/useCurrentStore';
 import { useProductsByStore, useDeleteProduct, useCreateProduct } from '@/features/dashboard/hooks/useProducts';
 import { LoadingState, EmptyState, ErrorState } from '@/components/dashboard/shared/StateComponents';
@@ -13,6 +14,20 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, Plus, Trash2, Download, Share2, Eye } from 'lucide-react';
+import { showToast } from '@/lib/notifications/toast';
+import { FileUpload } from '@/components/ui/FileUpload';
+
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+
+function validateImageFile(file: File): string | null {
+  if (!file.type.startsWith('image/')) {
+    return 'Please choose an image file (PNG, JPG or WebP).';
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    return 'Please choose an image under 10MB.';
+  }
+  return null;
+}
 
 const productSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -64,13 +79,15 @@ function shareOnWhatsApp(product: ProductDto, storeSlug?: string) {
 }
 
 export default function ProductsPage() {
-  const { storeId } = useCurrentStoreId();
+  const router = useRouter();
+  const { storeId, isLoading: storesLoading } = useCurrentStoreId();
   const { data: products, isLoading, error, refetch } = useProductsByStore(storeId ?? '');
   const deleteProduct = useDeleteProduct();
   const createProduct = useCreateProduct();
   const [showForm, setShowForm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [view, setView] = useViewPreference();
+  const [imageUrl, setImageUrl] = useState('');
 
   const {
     register,
@@ -80,8 +97,22 @@ export default function ProductsPage() {
     resolver: zodResolver(productSchema),
     defaultValues: { name: '', description: '', price: 0, quantity: 0 }});
 
+  // Closing the dialog clears the form and any uploaded image so the
+  // next product starts fresh — a cancelled upload must not stick to
+  // the next product.
+  const closeForm = useCallback(() => {
+    setShowForm(false);
+    setFormError(null);
+    setImageUrl('');
+    reset();
+  }, [reset]);
+
   const onSubmit = useCallback(async (data: ProductFormData) => {
-    if (!storeId) return;
+    if (!storeId) {
+      showToast('warning', 'Set up your shop first', {
+        description: 'You need a shop before adding products. Finish setting it up, then try again.'});
+      return;
+    }
     setFormError(null);
     try {
       await createProduct.mutateAsync({
@@ -89,14 +120,14 @@ export default function ProductsPage() {
         description: data.description ?? '',
         price: data.price,
         quantity: data.quantity,
+        imageUrl: imageUrl || undefined,
         inventory: { quantity: data.quantity, trackQuantity: true, allowBackorder: false }});
-      reset();
-      setShowForm(false);
+      closeForm();
       refetch();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to create product');
     }
-  }, [storeId, createProduct, reset, refetch]);
+  }, [storeId, createProduct, imageUrl, closeForm, refetch]);
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Delete this product?')) return;
@@ -108,8 +139,15 @@ export default function ProductsPage() {
     }
   }, [deleteProduct, refetch]);
 
-  if (!storeId || isLoading) return <LoadingState message="Loading products..." />;
+  if (isLoading || storesLoading) return <LoadingState message="Loading products..." />;
   if (error) return <ErrorState title="Failed to load products" onRetry={refetch} />;
+  if (!storeId) return (
+    <EmptyState
+      title="Set up your shop first"
+      description="You need a shop before adding products. It only takes a few minutes."
+      action={{ label: 'Set up my shop', onClick: () => router.push('/onboarding') }}
+    />
+  );
 
   return (
     <div className="space-y-6">
@@ -140,11 +178,11 @@ export default function ProductsPage() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closeForm}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">New Product</h2>
-              <button onClick={() => setShowForm(false)} className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
+              <button onClick={closeForm} className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
                 <X className="h-5 w-5 text-gray-500" />
               </button>
             </div>
@@ -173,8 +211,15 @@ export default function ProductsPage() {
                   {errors.quantity && <p className="text-xs text-red-500 mt-1">{errors.quantity.message}</p>}
                 </div>
               </div>
+              <FileUpload
+                folder="products"
+                label="Product image"
+                currentUrl={imageUrl || undefined}
+                onUploaded={setImageUrl}
+                validateFile={validateImageFile}
+              />
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="button" onClick={closeForm} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
                 <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
                   {isSubmitting ? 'Creating...' : 'Create Product'}
                 </button>
@@ -186,7 +231,11 @@ export default function ProductsPage() {
 
       {!products?.length ? (
         <div className="rounded-2xl border border-gray-200 bg-white p-6">
-          <EmptyState title="No products yet" description="Create your first product to start selling." />
+          <EmptyState
+            title="No products yet"
+            description="Create your first product to start selling."
+            action={{ label: 'Add Product', onClick: () => setShowForm(true) }}
+          />
         </div>
       ) : view === 'cards' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

@@ -40,7 +40,7 @@ export function WelcomeStep({ onNext, onSkip }: WelcomeStepProps) {
         <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
           <Shield className="h-8 w-8 text-green-600 dark:text-green-400 mb-2" />
           <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Secure Platform</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Enterprise-grade security for your business</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Your shop and customer details are kept safe and private</p>
         </div>
         <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
           <Store className="h-8 w-8 text-purple-600 dark:text-purple-400 mb-2" />

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Sparkles, ArrowRight } from 'lucide-react';
+import { Check, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
 import { TEMPLATES, getTemplatesForCategory, TEMPLATE_ICON_MAP } from '@/features/templates/registry';
 import { Store } from 'lucide-react';
 import type { TemplateConfig } from '@/features/templates/types';
@@ -11,7 +11,10 @@ import { cn } from '@/lib/utils';
 
 interface TemplateSelectStepProps {
   category: string;
-  onSelect: (templateId: string) => void;
+  /** Design the shop is already using, so it stays selected when returning. */
+  selectedTemplate?: string;
+  /** Saves the chosen design. Resolves to false when it could not be saved. */
+  onSave: (templateId: string) => Promise<boolean>;
   onNext: () => void;
   onBack: () => void;
 }
@@ -57,13 +60,32 @@ function TemplateCard({ template, selected, onSelect }: { template: TemplateConf
   );
 }
 
-export function TemplateSelectStep({ category, onSelect, onNext, onBack }: TemplateSelectStepProps) {
+export function TemplateSelectStep({ category, selectedTemplate, onSave, onNext, onBack }: TemplateSelectStepProps) {
   const categoryTemplates = getTemplatesForCategory(category);
-  const [selected, setSelected] = useState(categoryTemplates[0]?.id || TEMPLATES[0].id);
+  // Keep the saved design visible even when it is not one of this category's
+  // suggestions, so continuing never silently swaps the seller's choice.
+  const savedTemplate = selectedTemplate
+    ? TEMPLATES.find((template) => template.id === selectedTemplate)
+    : undefined;
+  const templates =
+    savedTemplate && !categoryTemplates.some((template) => template.id === savedTemplate.id)
+      ? [savedTemplate, ...categoryTemplates]
+      : categoryTemplates;
+  const [selected, setSelected] = useState(
+    savedTemplate?.id ?? categoryTemplates[0]?.id ?? TEMPLATES[0].id
+  );
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSelect = (id: string) => {
-    setSelected(id);
-    onSelect(id);
+  const handleContinue = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const saved = await onSave(selected);
+      // Only move on once the design is safely saved.
+      if (saved) onNext();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -82,26 +104,39 @@ export function TemplateSelectStep({ category, onSelect, onNext, onBack }: Templ
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
-        {categoryTemplates.map((template) => (
+        {templates.map((template) => (
           <TemplateCard
             key={template.id}
             template={template}
             selected={selected === template.id}
-            onSelect={() => handleSelect(template.id)}
+            onSelect={() => setSelected(template.id)}
           />
         ))}
-        {categoryTemplates.length === 0 && (
+        {templates.length === 0 && (
           <p className="col-span-2 text-center text-sm text-gray-500 py-8">No templates found for this category.</p>
         )}
       </div>
 
       <div className="flex items-center justify-between pt-4">
-        <Button variant="outline" onClick={onBack}>
+        <Button variant="outline" onClick={onBack} disabled={isSaving}>
           Back
         </Button>
-        <Button onClick={onNext} className="bg-blue-600 hover:bg-blue-700 text-white">
-          Continue
-          <ArrowRight className="ml-2 h-4 w-4" />
+        <Button
+          onClick={handleContinue}
+          disabled={isSaving}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              Continue
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </>
+          )}
         </Button>
       </div>
     </motion.div>

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Users, UserPlus, SkipForward, X } from 'lucide-react';
+import { Users, UserPlus, X } from 'lucide-react';
 
 interface InviteStaffStepProps {
   onNext: () => void;
@@ -112,36 +112,27 @@ export function InviteStaffStep({ onNext, onBack }: InviteStaffStepProps) {
             </Button>
           </div>
           <p className="text-xs text-gray-500 mt-3">
-            Invitations will be sent via email. You can add more staff later from the dashboard.
+            Nothing is sent from this step. After setup you can invite your team from your
+            dashboard at any time, and they&apos;ll get an email then.
           </p>
         </div>
 
         <div className="p-4 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-900/20">
           <p className="text-sm text-blue-800 dark:text-blue-300">
-            💡 <strong>Tip:</strong> You can always invite staff later from your dashboard. This step is completely optional!
+            💡 <strong>Tip:</strong> Each team member gets their own login, and you decide what they can see and do.
           </p>
         </div>
       </div>
 
       <div className="flex justify-between pt-6">
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onBack}>
-            Back
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={onNext}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            <SkipForward className="h-4 w-4 mr-2" />
-            Skip for Now
-          </Button>
-        </div>
+        <Button variant="outline" onClick={onBack}>
+          Back
+        </Button>
         <Button
           onClick={onNext}
           className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
         >
-          Send Invitations
+          Continue
         </Button>
       </div>
     </motion.div>

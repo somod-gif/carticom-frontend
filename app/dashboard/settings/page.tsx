@@ -1,23 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useCurrentStoreId } from '@/hooks/useCurrentStore';
 import { useSettings, useUpdateSettings } from '@/features/dashboard/hooks/useSettings';
-import type { SettingsDto } from '@/features/dashboard/types/settings.types';
 import { LoadingState, ErrorState } from '@/components/dashboard/shared/StateComponents';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import axiosInstance from '@/lib/axios';
 import { showToast } from '@/lib/notifications/toast';
+import { Button } from '@/components/ui/button';
 import {
   User, Shield, Bell, CreditCard, Puzzle, Palette,
-  Key, Trash2, Lock, ExternalLink, CheckCircle, XCircle,
-  AlertTriangle, Eye, EyeOff, Send
+  Key, Trash2, Lock, ExternalLink, AlertTriangle,
+  CirclePlay, ChevronDown
 } from 'lucide-react';
 
 const SECTIONS = [
   'Business', 'Account', 'Security', 'Notifications',
-  'Payments', 'Integrations', 'Branding', 'API Keys', 'Danger Zone'
+  'Payments', 'Integrations', 'Branding', 'Developer', 'Help', 'Close my account'
 ] as const;
 
 type Section = typeof SECTIONS[number];
@@ -30,29 +30,40 @@ export default function SettingsPage() {
   const updateSettings = useUpdateSettings();
   const [activeSection, setActiveSection] = useState<Section>('Business');
 
-  // Business fields
-  const [businessName, setBusinessName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [address, setAddress] = useState('');
+  // Business fields — `null` means "not edited yet", so we show what's saved.
+  const [businessName, setBusinessName] = useState<string | null>(null);
+  const [phone, setPhone] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [address, setAddress] = useState<string | null>(null);
+
+  const savedBusiness = settings?.business;
+  const businessNameValue = businessName ?? savedBusiness?.businessName ?? '';
+  const phoneValue = phone ?? savedBusiness?.phone ?? '';
+  const emailValue = email ?? savedBusiness?.email ?? '';
+  const addressValue = address ?? savedBusiness?.address ?? '';
 
   // Account fields
-  const [fullName, setFullName] = useState('');
-  const [accountPhone, setAccountPhone] = useState('');
+  const [fullName, setFullName] = useState<string | null>(null);
+  const [accountPhone, setAccountPhone] = useState<string | null>(null);
   const [savingAccount, setSavingAccount] = useState(false);
 
+  const fullNameValue = fullName ?? user?.fullName ?? '';
+  const accountPhoneValue = accountPhone ?? user?.phone ?? '';
+
   // Notification fields
-  const [emailNotifications, setEmailNotifications] = useState(false);
-  const [orderNotifications, setOrderNotifications] = useState(false);
-  const [marketingEmails, setMarketingEmails] = useState(false);
+  const [emailNotifications, setEmailNotifications] = useState<boolean | null>(null);
+  const [orderNotifications, setOrderNotifications] = useState<boolean | null>(null);
+  const [marketingEmails, setMarketingEmails] = useState<boolean | null>(null);
   const [savingNotifications, setSavingNotifications] = useState(false);
 
-  // Branding fields
-  const [primaryColor, setPrimaryColor] = useState('#3B82F6');
-  const [secondaryColor, setSecondaryColor] = useState('#10B981');
-  const [savingBranding, setSavingBranding] = useState(false);
+  const savedNotifications = settings?.notifications;
+  const emailNotificationsValue = emailNotifications ?? savedNotifications?.emailNotifications ?? false;
+  const orderNotificationsValue = orderNotifications ?? savedNotifications?.orderNotifications ?? false;
+  const marketingEmailsValue = marketingEmails ?? savedNotifications?.marketingEmails ?? false;
 
-  // Danger zone
+  // Storefront branding lives in the Storefront Studio — see the card below.
+
+  // Closing the account
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingStore, setDeletingStore] = useState(false);
 
@@ -61,42 +72,16 @@ export default function SettingsPage() {
   const [instagramEnabled, setInstagramEnabled] = useState(false);
   const [facebookEnabled, setFacebookEnabled] = useState(false);
 
-  const [syncedSettings, setSyncedSettings] = useState<SettingsDto | undefined>(undefined);
-
-  useEffect(() => {
-    if (settings && settings !== syncedSettings) {
-      setSyncedSettings(settings);
-      if (settings.business) {
-        setBusinessName(settings.business.businessName ?? '');
-        setPhone(settings.business.phone ?? '');
-        setEmail(settings.business.email ?? '');
-        setAddress(settings.business.address ?? '');
-      }
-      if (settings.notifications) {
-        setEmailNotifications(settings.notifications.emailNotifications ?? false);
-        setOrderNotifications(settings.notifications.orderNotifications ?? false);
-        setMarketingEmails(settings.notifications.marketingEmails ?? false);
-      }
-    }
-  }, [settings, syncedSettings]);
-
-  useEffect(() => {
-    if (user) {
-      setFullName(user.fullName ?? '');
-      setAccountPhone(user.phone ?? '');
-    }
-  }, [user]);
-
   const handleSaveBusiness = () => {
     if (!storeId) return;
     updateSettings.mutate({
       storeId: storeId,
       data: {
         business: {
-          businessName,
-          email,
-          phone,
-          address
+          businessName: businessNameValue,
+          email: emailValue,
+          phone: phoneValue,
+          address: addressValue
         }
       }
     });
@@ -107,10 +92,10 @@ export default function SettingsPage() {
     setSavingAccount(true);
     try {
       await axiosInstance.put('/api/v1/auth/profile', {
-        fullName,
-        phone: accountPhone,
+        fullName: fullNameValue,
+        phone: accountPhoneValue,
       });
-      setUser({ ...user, fullName, phone: accountPhone });
+      setUser({ ...user, fullName: fullNameValue, phone: accountPhoneValue });
       showToast('success', 'Account updated successfully');
     } catch {
       showToast('error', 'Failed to update account');
@@ -125,9 +110,9 @@ export default function SettingsPage() {
     try {
       await axiosInstance.put(`/api/v1/stores/${storeId}/settings`, {
         notifications: {
-          emailNotifications,
-          orderNotifications,
-          marketingEmails,
+          emailNotifications: emailNotificationsValue,
+          orderNotifications: orderNotificationsValue,
+          marketingEmails: marketingEmailsValue,
         },
       });
       showToast('success', 'Notification preferences saved');
@@ -139,21 +124,13 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveBranding = async () => {
-    if (!storeId) return;
-    setSavingBranding(true);
+  const handleReplayTour = () => {
     try {
-      await axiosInstance.put(`/api/v1/stores/${storeId}`, {
-        primaryColor,
-        secondaryColor,
-      });
-      showToast('success', 'Branding saved successfully');
-      refetch();
+      localStorage.removeItem('carticom-dashboard-tour-seen');
     } catch {
-      showToast('error', 'Failed to save branding');
-    } finally {
-      setSavingBranding(false);
+      // Storage can be blocked in some browsers — reload anyway.
     }
+    window.location.reload();
   };
 
   const handleDeleteStore = async () => {
@@ -200,8 +177,9 @@ export default function SettingsPage() {
               'Payments': <CreditCard className="h-4 w-4" />,
               'Integrations': <Puzzle className="h-4 w-4" />,
               'Branding': <Palette className="h-4 w-4" />,
-              'API Keys': <Key className="h-4 w-4" />,
-              'Danger Zone': <Trash2 className="h-4 w-4" />,
+              'Developer': <Key className="h-4 w-4" />,
+              'Help': <CirclePlay className="h-4 w-4" />,
+              'Close my account': <Trash2 className="h-4 w-4" />,
             };
             return (
               <button
@@ -230,7 +208,7 @@ export default function SettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Business Name</label>
                   <input
                     type="text"
-                    value={businessName}
+                    value={businessNameValue}
                     onChange={(e) => setBusinessName(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                     placeholder="Your business name"
@@ -239,7 +217,7 @@ export default function SettingsPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Address</label>
                   <textarea
-                    value={address}
+                    value={addressValue}
                     onChange={(e) => setAddress(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                     rows={3}
@@ -251,7 +229,7 @@ export default function SettingsPage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
                     <input
                       type="tel"
-                      value={phone}
+                      value={phoneValue}
                       onChange={(e) => setPhone(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       placeholder="+234"
@@ -261,7 +239,7 @@ export default function SettingsPage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
                     <input
                       type="email"
-                      value={email}
+                      value={emailValue}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       placeholder="email@example.com"
@@ -287,7 +265,7 @@ export default function SettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
                   <input
                     type="text"
-                    value={fullName}
+                    value={fullNameValue}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                     placeholder="Your full name"
@@ -307,7 +285,7 @@ export default function SettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
                   <input
                     type="tel"
-                    value={accountPhone}
+                    value={accountPhoneValue}
                     onChange={(e) => setAccountPhone(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                     placeholder="+234"
@@ -381,14 +359,14 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     role="switch"
-                    aria-checked={emailNotifications}
-                    onClick={() => setEmailNotifications(!emailNotifications)}
+                    aria-checked={emailNotificationsValue}
+                    onClick={() => setEmailNotifications(!emailNotificationsValue)}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      emailNotifications ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                      emailNotificationsValue ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
                     }`}
                   >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      emailNotifications ? 'translate-x-6' : 'translate-x-1'
+                      emailNotificationsValue ? 'translate-x-6' : 'translate-x-1'
                     }`} />
                   </button>
                 </div>
@@ -400,14 +378,14 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     role="switch"
-                    aria-checked={orderNotifications}
-                    onClick={() => setOrderNotifications(!orderNotifications)}
+                    aria-checked={orderNotificationsValue}
+                    onClick={() => setOrderNotifications(!orderNotificationsValue)}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      orderNotifications ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                      orderNotificationsValue ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
                     }`}
                   >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      orderNotifications ? 'translate-x-6' : 'translate-x-1'
+                      orderNotificationsValue ? 'translate-x-6' : 'translate-x-1'
                     }`} />
                   </button>
                 </div>
@@ -419,14 +397,14 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     role="switch"
-                    aria-checked={marketingEmails}
-                    onClick={() => setMarketingEmails(!marketingEmails)}
+                    aria-checked={marketingEmailsValue}
+                    onClick={() => setMarketingEmails(!marketingEmailsValue)}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      marketingEmails ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                      marketingEmailsValue ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
                     }`}
                   >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      marketingEmails ? 'translate-x-6' : 'translate-x-1'
+                      marketingEmailsValue ? 'translate-x-6' : 'translate-x-1'
                     }`} />
                   </button>
                 </div>
@@ -522,95 +500,86 @@ export default function SettingsPage() {
           {activeSection === 'Branding' && (
             <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Branding</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Primary Color</label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="w-10 h-10 rounded-lg border border-gray-300 dark:border-gray-700 cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-mono"
-                    />
-                    <span className="text-sm text-gray-500">Used for buttons, links, and accents</span>
-                  </div>
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-6 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <Palette className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Secondary Color</label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={secondaryColor}
-                      onChange={(e) => setSecondaryColor(e.target.value)}
-                      className="w-10 h-10 rounded-lg border border-gray-300 dark:border-gray-700 cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={secondaryColor}
-                      onChange={(e) => setSecondaryColor(e.target.value)}
-                      className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-mono"
-                    />
-                    <span className="text-sm text-gray-500">Used for secondary elements</span>
-                  </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    Change your store&apos;s look in one place
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Colours, logo, fonts and sections are edited in one place — the Storefront Studio.
+                  </p>
                 </div>
-                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                  <p className="text-xs font-medium text-gray-500 uppercase mb-2">Preview</p>
-                  <div className="flex gap-2">
-                    <div
-                      className="px-4 py-2 rounded-lg text-white text-sm font-medium"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      Primary Button
-                    </div>
-                    <div
-                      className="px-4 py-2 rounded-lg text-white text-sm font-medium"
-                      style={{ backgroundColor: secondaryColor }}
-                    >
-                      Secondary Button
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={handleSaveBranding}
-                  disabled={savingBranding}
-                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {savingBranding ? 'Saving...' : 'Save Branding'}
-                </button>
+                <Button asChild variant="outline" className="shrink-0">
+                  <Link href="/dashboard/storefront">
+                    Open Storefront Studio
+                    <ExternalLink />
+                  </Link>
+                </Button>
               </div>
             </div>
           )}
 
-          {activeSection === 'API Keys' && (
+          {activeSection === 'Developer' && (
             <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">API Keys</h2>
-              <div className="space-y-4">
-                <div className="text-center py-8 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-                  <Key className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-                  <p className="text-sm text-gray-500 dark:text-gray-400">API keys are coming soon</p>
-                  <p className="text-xs text-gray-400 mt-1">You&apos;ll be able to generate API keys for programmatic access</p>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Developer</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Only needed if you use Carticom with other software. If that&apos;s not you, you can ignore this page.
+              </p>
+              <details className="group rounded-xl border border-gray-200 dark:border-gray-700 p-4 open:bg-gray-50 dark:open:bg-gray-800/50 transition-colors">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-gray-900 dark:text-white select-none">
+                  <span className="flex items-center gap-2">
+                    <Key className="h-4 w-4" />
+                    API keys
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-gray-400 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="mt-4 space-y-4">
+                  <div className="text-center py-8 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+                    <Key className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">API keys are coming soon</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      You&apos;ll be able to create a key so other software can work with your store safely.
+                    </p>
+                  </div>
+                  <button
+                    disabled
+                    className="px-6 py-2.5 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed text-sm font-medium"
+                  >
+                    Create API key
+                  </button>
+                </div>
+              </details>
+            </div>
+          )}
+
+          {activeSection === 'Help' && (
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Help</h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Welcome tour</p>
+                  <p className="text-xs text-gray-500">See the quick tour of your dashboard again.</p>
                 </div>
                 <button
-                  disabled
-                  className="px-6 py-2.5 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed text-sm font-medium"
+                  onClick={handleReplayTour}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 inline-flex items-center gap-2 shrink-0"
                 >
-                  Generate API Key
+                  <CirclePlay className="h-4 w-4" />
+                  Replay welcome tour
                 </button>
               </div>
             </div>
           )}
 
-          {activeSection === 'Danger Zone' && (
+          {activeSection === 'Close my account' && (
             <div className="rounded-2xl border border-red-200 dark:border-red-900/50 bg-white dark:bg-gray-900 p-6">
-              <h2 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-4">Danger Zone</h2>
+              <h2 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-4">Close my account</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                Irreversible and destructive actions. Proceed with caution.
+                Closing your account deletes your store and everything in it — your products, orders, customer
+                details and settings. This can&apos;t be undone.
               </p>
               <div className="space-y-3">
                 {showDeleteConfirm ? (
@@ -619,10 +588,11 @@ export default function SettingsPage() {
                       <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
                       <div>
                         <p className="text-sm font-medium text-red-800 dark:text-red-300">
-                          Are you absolutely sure?
+                          Are you sure you want to close your account?
                         </p>
                         <p className="text-sm text-red-600 dark:text-red-400 mt-1">
-                          This action cannot be undone. This will permanently delete your store and all associated data.
+                          Your store and all of its data will be deleted straight away, and there&apos;s no way
+                          to get it back.
                         </p>
                       </div>
                     </div>

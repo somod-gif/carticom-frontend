@@ -1,15 +1,16 @@
 'use client';
 
 
-import { CheckCircle2, Circle, ExternalLink } from 'lucide-react';
+import { CircleCheck, Circle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-interface ChecklistItem {
+export interface ChecklistItem {
   id: string;
   label: string;
   completed: boolean;
   link?: string;
+  linkLabel?: string;
 }
 
 interface LaunchChecklistProps {
@@ -47,7 +48,7 @@ export function LaunchChecklist({ items }: LaunchChecklistProps) {
           >
             <div className="flex items-center gap-3">
               {item.completed ? (
-                <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                <CircleCheck className="h-5 w-5 text-green-600 shrink-0" />
               ) : (
                 <Circle className="h-5 w-5 text-gray-400 shrink-0" />
               )}
@@ -70,7 +71,7 @@ export function LaunchChecklist({ items }: LaunchChecklistProps) {
                 className="shrink-0"
               >
                 <ExternalLink className="h-4 w-4 mr-1" />
-                Setup
+                {item.linkLabel ?? 'Setup'}
               </Button>
             )}
           </div>

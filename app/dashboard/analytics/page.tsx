@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { useAnalytics } from '@/features/dashboard/hooks/useAnalytics';
 import { useCurrentStoreId } from '@/hooks/useCurrentStore';
 import { LoadingState, ErrorState, EmptyState } from '@/components/dashboard/shared/StateComponents';
@@ -73,13 +74,14 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 }
 
 export default function AnalyticsPage() {
-  const { storeId } = useCurrentStoreId();
+  const router = useRouter();
+  const { storeId, isLoading: storesLoading } = useCurrentStoreId();
   const [activePeriod, setActivePeriod] = useState('7 Days');
 
   const periodParam = PERIOD_MAP[activePeriod];
   const { data: analytics, isLoading, error, refetch } = useAnalytics(storeId ?? '', periodParam);
 
-  if (isLoading || !storeId) {
+  if (isLoading || storesLoading) {
     return <LoadingState message="Loading analytics..." />;
   }
 
@@ -87,8 +89,24 @@ export default function AnalyticsPage() {
     return <ErrorState onRetry={() => refetch()} />;
   }
 
+  if (!storeId) {
+    return (
+      <EmptyState
+        title="Set up your shop first"
+        description="You need a shop before there's anything to measure. It only takes a few minutes."
+        action={{ label: 'Set up my shop', onClick: () => router.push('/onboarding') }}
+      />
+    );
+  }
+
   if (!analytics) {
-    return <EmptyState title="No analytics data" description="Analytics will appear once your store has activity." />;
+    return (
+      <EmptyState
+        title="No activity yet"
+        description="Numbers appear here once customers start ordering."
+        action={{ label: 'Add your first product', onClick: () => router.push('/dashboard/products') }}
+      />
+    );
   }
 
   const { metrics, trends, topProducts, topCategories } = analytics;
@@ -102,7 +120,7 @@ export default function AnalyticsPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Analytics</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Business intelligence and performance metrics
+            Track your sales, orders and customers over time
           </p>
         </div>
         <div className="flex gap-2">

@@ -14,6 +14,12 @@ interface FailedRequest {
   reject: (error: unknown) => void;
 }
 
+interface RateLimitBody {
+  error?: string;
+  message?: string;
+  retryAfterSeconds?: number;
+}
+
 // ─── Constants ───────────────────────────────────────────────
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
@@ -98,11 +104,26 @@ axiosInstance.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
+      _rateLimitRetried?: boolean;
     };
 
     // Don't retry refresh endpoint itself
     if (originalRequest?.url === REFRESH_ENDPOINT) {
       return Promise.reject(error);
+    }
+
+    // ── Rate limited (429) ──────────────────────────────────
+    // For safe (GET) requests we transparently wait out the short
+    // cooldown and retry once. Everything else surfaces a friendly,
+    // plain-language message with the wait time via extractErrorMessage.
+    if (error.response?.status === 429 && !originalRequest?._rateLimitRetried) {
+      const retryAfter = getRateLimitRetryAfter(error);
+      const method = (originalRequest?.method || 'get').toLowerCase();
+      if (retryAfter !== null && retryAfter > 0 && retryAfter <= 5 && method === 'get') {
+        originalRequest._rateLimitRetried = true;
+        await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+        return axiosInstance(originalRequest);
+      }
     }
 
     // If 401 and not already retried
@@ -175,11 +196,35 @@ axiosInstance.interceptors.response.use(
 
 // ─── Error Message Extractor ─────────────────────────────────
 
+/**
+ * Returns the cooldown in seconds from a 429 response, or null when the
+ * server did not specify one.
+ */
+export const getRateLimitRetryAfter = (error: unknown): number | null => {
+  if (!axios.isAxiosError(error) || error.response?.status !== 429) return null;
+  const body = error.response.data as RateLimitBody | undefined;
+  const fromBody = Number(body?.retryAfterSeconds);
+  if (Number.isFinite(fromBody) && fromBody > 0) return Math.ceil(fromBody);
+  const fromHeader = Number(error.response.headers?.['retry-after']);
+  if (Number.isFinite(fromHeader) && fromHeader > 0) return Math.ceil(fromHeader);
+  return null;
+};
+
 export const extractErrorMessage = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
     const serverError = error.response?.data as Record<string, unknown> | undefined;
     if (!serverError) {
       return 'An unexpected error occurred. Please try again.';
+    }
+
+    // Rate limiting gets its own friendly wording with the wait time.
+    if (error.response?.status === 429) {
+      const seconds = Number((serverError as RateLimitBody).retryAfterSeconds);
+      if (Number.isFinite(seconds) && seconds > 0) {
+        const wait = Math.ceil(seconds);
+        return `You're doing that a little too often. Please wait ${wait} second${wait === 1 ? '' : 's'} and try again.`;
+      }
+      return 'You are doing that a little too often. Please wait a moment and try again.';
     }
 
     const data = serverError as {

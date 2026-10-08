@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -26,6 +26,14 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  // Rate-limit cooldown: the button locks out for the exact wait the API asked for.
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => setCooldown((value) => value - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
 
   const sessionExpired = searchParams.get('session') === 'expired';
 
@@ -39,6 +47,7 @@ function LoginForm() {
       password: ''}});
 
   const onSubmit = async (data: LoginSchema) => {
+    if (cooldown > 0) return;
     setServerError(null);
     const result = await login({
       email: data.email,
@@ -74,6 +83,11 @@ function LoginForm() {
       const errorMessage = result.error ?? 'Login failed. Please try again.';
       setServerError(errorMessage);
       authToasts.loginError(errorMessage);
+      // The API says "Please wait N seconds and try again." when rate limited.
+      const waitMatch = /wait (\d+) seconds?/i.exec(errorMessage);
+      if (waitMatch) {
+        setCooldown(Number(waitMatch[1]));
+      }
     }
   };
 
@@ -188,7 +202,7 @@ function LoginForm() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || cooldown > 0}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all duration-300 hover:from-blue-700 hover:to-blue-800 hover:shadow-blue-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? (
@@ -196,6 +210,8 @@ function LoginForm() {
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               Signing in...
             </>
+          ) : cooldown > 0 ? (
+            `Try again in ${cooldown}s`
           ) : (
             'Login'
           )}

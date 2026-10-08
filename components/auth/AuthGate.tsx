@@ -15,7 +15,14 @@ const ROLE_DASHBOARD_MAP: Record<string, string> = {
   STAFF: '/staff/dashboard',
   CUSTOMER: '/storefront'};
 
+// Auth/marketing landing pages that a signed-in user is bounced away from.
 const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/verify-email'];
+
+// Role-gated application areas — mirrors middleware.ts `protectedPaths`.
+// Everything else (marketing, /store/[slug] shop pages, /storefront customer
+// area) is public: guests must be able to browse shops without an account.
+// Pages in the public areas handle their own signed-out states.
+const PROTECTED_PREFIXES = ['/dashboard', '/staff', '/admin', '/super-admin', '/onboarding'];
 
 function getDashboardForRole(role?: string): string {
   return ROLE_DASHBOARD_MAP[role ?? ''] || '/dashboard';
@@ -30,7 +37,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const initRef = useRef(false);
 
-  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+  const isProtectedRoute = PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
 
   // C10: mount session idle monitor + H7: clear store on logout
   useSessionMonitor();
@@ -51,14 +60,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           : getDashboardForRole(user?.role)
       );
     }
-    if (!isAuthenticated && !isPublicRoute) {
+    if (!isAuthenticated && isProtectedRoute) {
       const returnUrl = encodeURIComponent(pathname);
       router.replace(`/login?returnUrl=${returnUrl}`);
     }
-  }, [ready, isAuthenticated, pathname, router, user?.role, user?.onboardingCompleted, isPublicRoute]);
+  }, [ready, isAuthenticated, pathname, router, user?.role, user?.onboardingCompleted, isProtectedRoute]);
 
-  // Public routes render immediately — never block the landing page with a loader.
-  if (isPublicRoute) {
+  // Everything outside the role-gated areas renders immediately — never
+  // block public shop pages, the storefront or the marketing site with a
+  // loader (guests browse without an account).
+  if (!isProtectedRoute) {
     return <>{children}</>;
   }
 

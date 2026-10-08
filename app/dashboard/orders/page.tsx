@@ -46,7 +46,7 @@ function statusBadgeClasses(status: OrderStatus) {
 }
 
 export default function OrdersPage() {
-  const { storeId } = useCurrentStoreId();
+  const { storeId, isLoading: storesLoading } = useCurrentStoreId();
   const router = useRouter();
   const [selectedStatus, setSelectedStatus] = useState('');
   const [view, setView] = useViewPreference();
@@ -59,9 +59,14 @@ export default function OrdersPage() {
   const statusSelect = (order: OrderDto) => (
     <select
       value={order.status}
+      disabled={updateStatus.isPending}
       onClick={(e) => e.stopPropagation()}
-      onChange={(e) => updateStatus.mutate({ id: String(order.id), status: e.target.value })}
-      className="h-9 px-2 border border-gray-300 dark:border-gray-700 rounded-lg text-xs bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+      onChange={(e) => updateStatus.mutate(
+        { id: String(order.id), status: e.target.value },
+        // If the change fails, reload so the dropdown never shows a
+        // status that didn't actually save.
+        { onError: () => refetch() })}
+      className="h-9 px-2 border border-gray-300 dark:border-gray-700 rounded-lg text-xs bg-white dark:bg-gray-900 text-gray-900 dark:text-white disabled:opacity-50"
       aria-label="Order status"
     >
       {ORDER_STATUS_OPTIONS.map((s) => (
@@ -91,8 +96,15 @@ export default function OrdersPage() {
     </div>
   );
 
-  if (!storeId || isLoading) return <LoadingState message="Loading orders..." />;
+  if (isLoading || storesLoading) return <LoadingState message="Loading orders..." />;
   if (error) return <ErrorState title="Failed to load orders" onRetry={refetch} />;
+  if (!storeId) return (
+    <EmptyState
+      title="Set up your shop first"
+      description="You need a shop before orders can come in. It only takes a few minutes."
+      action={{ label: 'Set up my shop', onClick: () => router.push('/onboarding') }}
+    />
+  );
   if (!orders?.length) return (
     <div className="space-y-6">
       <div>
@@ -104,6 +116,11 @@ export default function OrdersPage() {
         <EmptyState
           title={selectedStatus ? `No ${selectedStatus.toLowerCase()} orders` : 'No orders yet'}
           description={selectedStatus ? 'Try a different filter.' : 'Orders will appear here when customers make purchases.'}
+          action={
+            selectedStatus
+              ? { label: 'Show all orders', onClick: () => setSelectedStatus('') }
+              : { label: 'Add a product', onClick: () => router.push('/dashboard/products') }
+          }
         />
       </div>
     </div>

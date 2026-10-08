@@ -13,7 +13,7 @@ import {
   Headphones, Settings, LogOut, DollarSign,
   ChevronLeft, ChevronRight, Menu, X,
   Tags, CreditCard, UserPlus, LayoutTemplate, Mail,
-  FileText, Ticket, Bell, Truck
+  FileText, Ticket, Bell, Truck, Palette
 } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { UserRole } from '@/features/auth/types';
@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 
 const OWNER_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+  { id: 'storefront', label: 'My Storefront', icon: Palette, href: '/dashboard/storefront' },
   { id: 'store', label: 'Store', icon: Store, href: '/dashboard/store' },
   { id: 'templates', label: 'Templates', icon: LayoutTemplate, href: '/dashboard/templates' },
   { id: 'products', label: 'Products', icon: Package, href: '/dashboard/products' },
@@ -85,7 +86,7 @@ function getRoleItems(role: string | undefined) {
 
 const NAV_GROUPS: Record<string, { label: string; keys: string[] }[]> = {
   [UserRole.BUSINESS_OWNER]: [
-    { label: 'Menu', keys: ['dashboard', 'store', 'templates', 'products', 'categories', 'orders', 'customers', 'payments', 'invoices', 'shipping', 'coupons'] },
+    { label: 'Menu', keys: ['dashboard', 'storefront', 'store', 'templates', 'products', 'categories', 'orders', 'customers', 'payments', 'invoices', 'shipping', 'coupons'] },
     { label: 'Manage', keys: ['subscription', 'staff', 'custom-solutions', 'ai'] },
     { label: 'Insights', keys: ['analytics', 'notifications', 'settings', 'support'] },
   ],

@@ -19,6 +19,12 @@ export function FeatureComingSoon({ title, description }: FeatureComingSoonProps
         <EmptyState
           title={`${title} is coming soon`}
           description={description ?? `We're building this feature. It will be available in an upcoming release.`}
+          action={{
+            label: 'Tell us what you need',
+            onClick: () => {
+              window.location.href = '/dashboard/support';
+            },
+          }}
         />
       </div>
     </div>

@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { useBusinessOwnerDashboard, useBusinessOwnerAnalytics } from '@/features/business-owner/hooks/useBusinessOwner';
+import { useMyStores } from '@/features/onboarding/hooks/useOnboarding';
+import { useProductsByStore } from '@/features/dashboard/hooks/useProducts';
 import { KpiGrid, type KpiCardData } from '@/components/dashboard/cards/KpiCards';
 import { LoadingState, ErrorState } from '@/components/dashboard/shared/StateComponents';
 import { FadeIn } from '@/components/ui/motion';
@@ -15,6 +17,8 @@ import type { OrderSummaryDTO } from '@/features/business-owner/types';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
+import { extractErrorMessage } from '@/lib/axios';
+import { LaunchChecklist, type ChecklistItem } from '@/components/dashboard/launch/LaunchChecklist';
 
 const SalesBarChart = dynamic(() => import('@/components/dashboard/charts/ChartCard').then(m => ({ default: m.SalesBarChart })), {
   loading: () => <ChartSkeleton />});
@@ -73,6 +77,9 @@ export default function DashboardPage() {
   const user = useAuthStore((state) => state.user);
   const { data: dashboard, isLoading, error, refetch } = useBusinessOwnerDashboard();
   const { data: analytics } = useBusinessOwnerAnalytics('monthly');
+  const { data: stores } = useMyStores();
+  const store = stores?.[0];
+  const { data: products } = useProductsByStore(store?.id ?? '');
   const [greeting] = useState(greetingForHour);
 
   const orders = useMemo(() => (dashboard?.recentOrders ?? []).map(toRecentOrder), [dashboard?.recentOrders]);
@@ -85,7 +92,7 @@ export default function DashboardPage() {
     return (
       <ErrorState
         title="Failed to load dashboard"
-        description={error instanceof Error ? error.message : 'We encountered an error loading your data. Please try again.'}
+        description={extractErrorMessage(error)}
         onRetry={refetch}
       />
     );
@@ -96,36 +103,101 @@ export default function DashboardPage() {
   const firstName = user?.fullName?.split(' ')[0] || 'User';
   const businessName = user?.businessName || 'Welcome to Carticom';
 
+  // Compute real changes from analytics data (compare last two periods)
+  const analyticsData = analytics ?? [];
+  const lastPeriod = analyticsData[analyticsData.length - 1];
+  const prevPeriod = analyticsData[analyticsData.length - 2];
+  const hasComparison = !!(lastPeriod && prevPeriod);
+
+  const revenueChange = hasComparison && prevPeriod.revenue > 0
+    ? Math.round(((lastPeriod.revenue - prevPeriod.revenue) / prevPeriod.revenue) * 100)
+    : null;
+
+  const ordersChange = hasComparison && prevPeriod.orders > 0
+    ? Math.round(((lastPeriod.orders - prevPeriod.orders) / prevPeriod.orders) * 100)
+    : null;
+
+  const formatChange = (percent: number | null): string | undefined => {
+    if (percent === null) return undefined;
+    return `${percent >= 0 ? '+' : ''}${percent}%`;
+  };
+
   const kpiCards: KpiCardData[] = [
     {
       id: 'available-revenue',
       label: 'Available Revenue',
       value: `₦${formatCurrency(dashboard.availableRevenue)}`,
-      change: '+12.5%',
-      changeType: 'positive',
-      icon: DollarSign},
+      change: formatChange(revenueChange),
+      changeType: revenueChange !== null ? (revenueChange >= 0 ? 'positive' : 'negative') : undefined,
+      icon: DollarSign,
+    },
     {
       id: 'pending-orders',
       label: 'Pending Orders',
       value: String(dashboard.pendingOrders ?? 0),
-      change: dashboard.pendingOrders > 0 ? '+3 this week' : 'No change',
-      changeType: 'neutral',
-      icon: ShoppingCart},
+      change: formatChange(ordersChange),
+      changeType: ordersChange !== null ? (ordersChange >= 0 ? 'positive' : 'negative') : undefined,
+      icon: ShoppingCart,
+    },
     {
       id: 'lifetime-revenue',
       label: 'Lifetime Revenue',
       value: `₦${formatCurrency(dashboard.lifetimeRevenue)}`,
-      change: '+8.1%',
-      changeType: 'positive',
-      icon: TrendingUp},
+      change: formatChange(revenueChange),
+      changeType: revenueChange !== null ? (revenueChange >= 0 ? 'positive' : 'negative') : undefined,
+      icon: TrendingUp,
+    },
     {
       id: 'pending-revenue',
       label: 'Pending Revenue',
       value: `₦${formatCurrency(dashboard.pendingRevenue)}`,
       change: 'Awaiting payment',
       changeType: 'neutral',
-      icon: Clock},
+      icon: Clock,
+    },
   ];
+
+  // Checklist items derived from real data — no fabricated progress
+  const checklistItems: ChecklistItem[] = [
+    {
+      id: 'create-shop',
+      label: 'Create your shop',
+      completed: !!store,
+      link: '/dashboard/store',
+      linkLabel: 'Set up',
+    },
+    {
+      id: 'add-product',
+      label: 'Add your first product',
+      completed: (products?.length ?? 0) > 0,
+      link: '/dashboard/products',
+      linkLabel: 'Add product',
+    },
+    {
+      id: 'design-shop',
+      label: 'Design your shop',
+      completed: !!(store?.template || store?.primaryColor),
+      link: '/dashboard/storefront',
+      linkLabel: 'Design',
+    },
+    {
+      id: 'publish-shop',
+      label: 'Publish your shop',
+      completed: store?.status === 'ACTIVE',
+      link: '/dashboard/storefront',
+      linkLabel: 'Publish',
+    },
+    {
+      id: 'share-link',
+      label: 'Share your shop link',
+      completed: store?.status === 'ACTIVE' && !!store?.slug,
+      link: store?.slug ? `/store/${store.slug}` : undefined,
+      linkLabel: 'View shop',
+    },
+  ];
+
+  const hasRevenue = (dashboard.lifetimeRevenue ?? 0) > 0;
+  const hasOrders = (dashboard.pendingOrders ?? 0) > 0 || (dashboard.recentOrders?.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -139,6 +211,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </FadeIn>
+
+      <LaunchChecklist items={checklistItems} />
 
       <KpiGrid cards={kpiCards} isLoading={isLoading} />
 
@@ -156,14 +230,16 @@ export default function DashboardPage() {
                 <p className="text-sm text-gray-500 font-medium">No sales yet</p>
                 <p className="text-xs text-gray-400 mt-1 mb-4">Your monthly sales chart will appear here after your first order</p>
                 <Button asChild variant="outline" size="sm">
-                  <Link href="/storefront">View your storefront</Link>
+                  <Link href="/dashboard/storefront">Design your shop</Link>
                 </Button>
               </div>
             )}
           </div>
-          <div>
-            <TargetProgressCard percentage={Math.min(100, ((dashboard.lifetimeRevenue ?? 0) / 20000000) * 100)} target="₦20M" revenue={`₦${formatCurrency(dashboard.lifetimeRevenue ?? 0)}`} today="₦0" />
-          </div>
+          {hasRevenue && (
+            <div>
+              <TargetProgressCard percentage={Math.min(100, ((dashboard.lifetimeRevenue ?? 0) / 20000000) * 100)} target="₦20M" revenue={`₦${formatCurrency(dashboard.lifetimeRevenue ?? 0)}`} today="₦0" />
+            </div>
+          )}
         </div>
       </FadeIn>
 
@@ -186,9 +262,11 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-          <div>
-            <DemographicCard data={[{ country: 'Nigeria', flag: '🇳🇬', customers: dashboard.recentOrders?.length ?? 0, percentage: 100 }]} />
-          </div>
+          {hasOrders && (
+            <div>
+              <DemographicCard data={[{ country: 'Nigeria', flag: '🇳🇬', customers: dashboard.recentOrders?.length ?? 0, percentage: 100 }]} />
+            </div>
+          )}
         </div>
       </FadeIn>
 

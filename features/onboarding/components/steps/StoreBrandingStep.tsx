@@ -10,18 +10,22 @@ import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { storeBrandingSchema, type StoreBrandingFormData } from '@/features/onboarding/schemas';
 import { useUpdateStore } from '@/features/onboarding/hooks/useOnboarding';
+import { extractErrorMessage } from '@/lib/axios';
+import { appUrl } from '@/lib/site-config';
 import type { StoreDto } from '@/features/onboarding/types';
 
 interface StoreBrandingStepProps {
   onNext: () => void;
   onBack: () => void;
-  storeId?: string;
+  /** The seller's shop, used to pre-fill the form and save into it. */
+  store?: StoreDto | null;
   onStoreUpdated: (store: StoreDto) => void;
 }
 
-export function StoreBrandingStep({ onNext, onBack, storeId, onStoreUpdated }: StoreBrandingStepProps) {
+export function StoreBrandingStep({ onNext, onBack, store, onStoreUpdated }: StoreBrandingStepProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const updateStore = useUpdateStore();
+  const storeId = store?.id;
 
   const {
     register,
@@ -30,9 +34,9 @@ export function StoreBrandingStep({ onNext, onBack, storeId, onStoreUpdated }: S
     formState: { errors, isSubmitting }} = useForm<StoreBrandingFormData>({
     resolver: zodResolver(storeBrandingSchema),
     defaultValues: {
-      storeName: '',
-      slug: '',
-      themeColor: '#3B82F6',
+      storeName: store?.name ?? '',
+      slug: store?.slug ?? '',
+      themeColor: store?.primaryColor ?? '#3B82F6',
       storeVisibility: true,
       maintenanceMode: false}});
 
@@ -46,6 +50,10 @@ export function StoreBrandingStep({ onNext, onBack, storeId, onStoreUpdated }: S
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
+
+  // Live example of the address customers will type, e.g. https://carticom.cv/store/my-shop
+  const slugPreview = watchSlug || autoSlug;
+  const addressPreview = slugPreview ? appUrl(`/store/${slugPreview}`) : '';
 
   const onSubmit = async (data: StoreBrandingFormData) => {
     try {
@@ -65,8 +73,9 @@ export function StoreBrandingStep({ onNext, onBack, storeId, onStoreUpdated }: S
       onStoreUpdated(updated);
       onNext();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to save branding. Please try again.';
-      setSubmitError(msg);
+      setSubmitError(
+        extractErrorMessage(err) || 'We could not save your shop details. Please try again.'
+      );
     }
   };
 
@@ -101,14 +110,21 @@ export function StoreBrandingStep({ onNext, onBack, storeId, onStoreUpdated }: S
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="slug">Store Slug *</Label>
+            <Label htmlFor="slug">Shop web address *</Label>
             <Input
               id="slug"
               placeholder={autoSlug || 'my-awesome-store'}
               {...register('slug')}
             />
             <p className="text-xs text-gray-500">
-              {autoSlug ? `Suggested: ${autoSlug}` : 'This will be your store URL'}
+              {addressPreview ? (
+                <>
+                  Customers will find you at{' '}
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{addressPreview}</span>
+                </>
+              ) : (
+                'Type your shop name and we will suggest an address for you.'
+              )}
             </p>
             {errors.slug && (
               <p className="text-sm text-red-500">{errors.slug.message}</p>
@@ -195,7 +211,7 @@ export function StoreBrandingStep({ onNext, onBack, storeId, onStoreUpdated }: S
           <div className="aspect-video bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 flex items-center justify-center">
             {storeId ? (
               <p className="text-sm text-gray-500">
-                Live preview at /store/{watchSlug || autoSlug || '...'}
+                Live preview at {appUrl(`/store/${slugPreview || '...'}`)}
               </p>
             ) : (
               <p className="text-sm text-gray-500">Store preview will appear here</p>

@@ -1,22 +1,22 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { API_URL } from '@/lib/site-config';
 
 
-export default function UnsubscribePage() {
+function UnsubscribeContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get('email') || '';
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
 
+  // A missing email is derived during render (not set inside the effect) —
+  // nothing to fetch in that case.
+  const missingEmail = !email;
+
   useEffect(() => {
-    if (!email) {
-      setStatus('error');
-      setMessage('No email address provided. Please use the link from your email.');
-      return;
-    }
+    if (!email) return;
 
     // Call the backend unsubscribe endpoint. API_URL is empty for same-origin
     // deployments, where the vercel.json rewrite proxies /api/* to the backend.
@@ -41,10 +41,15 @@ export default function UnsubscribePage() {
       });
   }, [email]);
 
+  const shownStatus = missingEmail ? 'error' : status;
+  const shownMessage = missingEmail
+    ? 'No email address provided. Please use the link from your email.'
+    : message;
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-        {status === 'loading' && (
+        {shownStatus === 'loading' && (
           <>
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
             <h1 className="text-xl font-semibold text-gray-900 mb-2">Processing...</h1>
@@ -52,7 +57,7 @@ export default function UnsubscribePage() {
           </>
         )}
 
-        {status === 'success' && (
+        {shownStatus === 'success' && (
           <>
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -60,7 +65,7 @@ export default function UnsubscribePage() {
               </svg>
             </div>
             <h1 className="text-xl font-semibold text-gray-900 mb-2">Unsubscribed</h1>
-            <p className="text-gray-500 mb-6">{message}</p>
+            <p className="text-gray-500 mb-6">{shownMessage}</p>
             <Link
               href="/"
               className="inline-block bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
@@ -70,7 +75,7 @@ export default function UnsubscribePage() {
           </>
         )}
 
-        {status === 'error' && (
+        {shownStatus === 'error' && (
           <>
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -78,7 +83,7 @@ export default function UnsubscribePage() {
               </svg>
             </div>
             <h1 className="text-xl font-semibold text-gray-900 mb-2">Something went wrong</h1>
-            <p className="text-gray-500 mb-6">{message}</p>
+            <p className="text-gray-500 mb-6">{shownMessage}</p>
             <Link
               href="/"
               className="inline-block bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
@@ -89,5 +94,21 @@ export default function UnsubscribePage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Next 16 requires any component calling useSearchParams to sit inside a
+// Suspense boundary so the page can be prerendered statically.
+export default function UnsubscribePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="text-sm text-gray-500">Loading…</div>
+        </div>
+      }
+    >
+      <UnsubscribeContent />
+    </Suspense>
   );
 }

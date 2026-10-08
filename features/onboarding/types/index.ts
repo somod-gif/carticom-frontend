@@ -31,6 +31,10 @@ export interface StoreDto {
   seoTitle?: string;
   seoDescription?: string;
   customCss?: string;
+  /** Short promo text (≤200 chars) shown in the storefront announcement bar. */
+  announcementBar?: string;
+  /** JSON array string of section tokens, e.g. `["hero","showcase","faq"]`. */
+  sectionConfig?: string;
   phone?: string;
   email?: string;
   address?: string;

@@ -14,6 +14,11 @@ export default function WaitlistPage() {
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
 
+  const [checkEmail, setCheckEmail] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [checkError, setCheckError] = useState<string | null>(null);
+  const [checkResult, setCheckResult] = useState<{ status: string; position?: number } | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -34,6 +39,26 @@ export default function WaitlistPage() {
       setError(extractErrorMessage(err) || 'Could not join the waitlist. Please try again.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleCheck = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCheckError(null);
+    setCheckResult(null);
+    const value = checkEmail.trim();
+    if (!value || !value.includes('@')) {
+      setCheckError('Please enter a valid email address.');
+      return;
+    }
+    setChecking(true);
+    try {
+      const res = await axiosInstance.get('/api/v1/waitlist/check', { params: { email: value } });
+      setCheckResult(res.data?.data as { status: string; position?: number });
+    } catch (err) {
+      setCheckError(extractErrorMessage(err) || 'We could not look up your spot. Please try again.');
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -86,8 +111,8 @@ export default function WaitlistPage() {
                   let you know the moment your spot opens up.
                 </p>
                 <Button asChild className="mt-6">
-                  <Link href="/">
-                    Back to Home
+                  <Link href="#check">
+                    Check my spot
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -171,6 +196,87 @@ export default function WaitlistPage() {
                   We&apos;ll only email you about your spot. No spam.
                 </p>
               </>
+            )}
+          </motion.div>
+
+          <motion.div
+            id="check"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.25 }}
+            className="mt-6 scroll-mt-24 rounded-3xl border border-gray-200 bg-white/90 p-8 shadow-xl shadow-blue-500/5 backdrop-blur-sm"
+          >
+            <h2 className="text-xl font-bold text-gray-900">Check your spot</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Already joined? Enter your email to see where you stand.
+            </p>
+
+            <form onSubmit={handleCheck} className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <input
+                type="email"
+                value={checkEmail}
+                onChange={(e) => setCheckEmail(e.target.value)}
+                placeholder="ada@business.com"
+                aria-label="Email address to check"
+                className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              />
+              <Button
+                type="submit"
+                disabled={checking}
+                className="rounded-xl px-6 py-2.5 text-sm font-semibold"
+              >
+                {checking ? 'Checking...' : 'Check my spot'}
+              </Button>
+            </form>
+
+            {checkError && (
+              <p className="mt-3 rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-600">
+                {checkError}
+              </p>
+            )}
+
+            {checkResult && (
+              <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/70 p-5 text-sm text-gray-700">
+                {checkResult.status === 'WAITING' && (
+                  <p>
+                    You&apos;re in line!{' '}
+                    {typeof checkResult.position === 'number' && (
+                      <span className="font-semibold text-gray-900">
+                        #{checkResult.position}
+                      </span>
+                    )}{' '}
+                    among the waiting list. We&apos;ll email you the moment your spot opens.
+                  </p>
+                )}
+                {checkResult.status === 'INVITED' && (
+                  <p>
+                    You&apos;ve been invited! Check your inbox for your sign-up email — your
+                    spot is waiting.
+                  </p>
+                )}
+                {checkResult.status === 'APPROVED' && (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <p className="flex-1">
+                      You&apos;re approved! Your account is ready — sign in to start building
+                      your shop.
+                    </p>
+                    <Button asChild size="sm" className="shrink-0">
+                      <Link href="/login">Open Carticom</Link>
+                    </Button>
+                  </div>
+                )}
+                {checkResult.status === 'REJECTED' && (
+                  <p>
+                    This email address isn&apos;t on the active waitlist right now.
+                  </p>
+                )}
+                {checkResult.status === 'NOT_FOUND' && (
+                  <p>
+                    We couldn&apos;t find that email on the list. Scroll up to join — it only
+                    takes a moment.
+                  </p>
+                )}
+              </div>
             )}
           </motion.div>
 

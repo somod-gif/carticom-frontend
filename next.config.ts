@@ -48,6 +48,24 @@ const securityHeaders = [
   },
 ];
 
+// The Storefront Studio embeds /store/preview/* in a same-origin iframe for
+// its live preview, so that one route must be frameable by ourselves only.
+// (Next.js applies the LAST matching header entry, so this must follow the
+// global entry below.)
+const previewSecurityHeaders = securityHeaders.map((header) =>
+  header.key === "X-Frame-Options"
+    ? { ...header, value: "SAMEORIGIN" }
+    : header.key === "Content-Security-Policy"
+      ? {
+          ...header,
+          value: header.value.replace(
+            "frame-ancestors 'none'",
+            "frame-ancestors 'self'"
+          ),
+        }
+      : header
+);
+
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
@@ -59,6 +77,10 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers: securityHeaders,
+      },
+      {
+        source: "/store/preview/:path*",
+        headers: previewSecurityHeaders,
       },
     ];
   },

@@ -36,6 +36,8 @@ export interface CreateProductDto {
   barcode?: string;
   categoryId?: string;
   images?: string[];
+  /** Main product image URL — matches the backend CreateProductRequest.imageUrl field. */
+  imageUrl?: string;
   /** Top-level stock quantity (backend maps this onto stockQuantity). */
   quantity?: number;
   /** Backend's active flag — status is derived from this + stock level. */

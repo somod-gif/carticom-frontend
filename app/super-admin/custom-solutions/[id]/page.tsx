@@ -85,6 +85,9 @@ export default function SuperAdminCustomSolutionDetailPage() {
       setQuotationAmount('');
       setQuotationNote('');
       setQuotationFile(null);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to upload quotation');
     }});
 
   const assignMutation = useMutation({
@@ -326,17 +329,10 @@ export default function SuperAdminCustomSolutionDetailPage() {
                   if (!amount || amount <= 0) return;
                   quotationMutation.mutate({ amount, note: quotationNote, file: quotationFile ?? undefined });
                 }}
-                disabled={quotationMutation.isPending || !quotationAmount}
+                disabled
                 className="w-full px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
-                {quotationMutation.isPending ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Uploading...
-                  </span>
-                ) : (
-                  'Send Quotation'
-                )}
+                Quotation upload isn't available yet
               </button>
             </div>
           </div>

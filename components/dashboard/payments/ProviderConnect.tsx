@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog } from '@/components/ui/dialog';
-import { toast } from 'sonner';
+import { showToast } from '@/lib/notifications/toast';
 
 type Provider = 'PAYSTACK' | 'FLUTTERWAVE';
 
@@ -84,7 +84,7 @@ export function ProviderConnect({ storeId }: { storeId: string }) {
         if (flutterwaveVerifyHash.trim()) payload.flutterwaveVerifyHash = flutterwaveVerifyHash.trim();
       }
       await storeApi.savePaymentCredentials(storeId, payload);
-      toast.success('Payment provider connected');
+      showToast('success', 'Payment details saved');
       setDialogOpen(false);
       setPaystackSecretKey('');
       setPaystackPublicKey('');
@@ -92,7 +92,7 @@ export function ProviderConnect({ storeId }: { storeId: string }) {
       setFlutterwaveVerifyHash('');
       await load();
     } catch {
-      toast.error('Failed to save credentials. Check your keys and try again.');
+      showToast('error', "We couldn't save your details. Check the keys and try again.");
     } finally {
       setSaving(false);
     }
@@ -104,7 +104,7 @@ export function ProviderConnect({ storeId }: { storeId: string }) {
       name: 'Paystack',
       connected: !!config?.paystackConnected,
       hint: config?.paystackPublicKeyMasked
-        ? `Public key: ${config.paystackPublicKeyMasked}`
+        ? `Key on file: ${config.paystackPublicKeyMasked}`
         : 'Accept card, transfer, and USSD payments in Nigeria.',
     },
     {
@@ -137,7 +137,7 @@ export function ProviderConnect({ storeId }: { storeId: string }) {
         </div>
         <p className="mt-4 text-sm text-gray-500 flex items-center gap-2">
           <AlertCircle className="h-4 w-4 text-red-500" />
-          Could not load payment configuration.
+          We couldn&apos;t load your payment settings.
         </p>
       </div>
     );
@@ -149,8 +149,8 @@ export function ProviderConnect({ storeId }: { storeId: string }) {
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Payment Methods</h2>
         <span className="text-xs text-gray-500">
           {config?.activeProvider
-            ? `Active: ${config.activeProvider === 'PAYSTACK' ? 'Paystack' : 'Flutterwave'}`
-            : 'No provider active'}
+            ? `Using ${config.activeProvider === 'PAYSTACK' ? 'Paystack' : 'Flutterwave'}`
+            : 'Not connected yet'}
         </span>
       </div>
 
@@ -198,8 +198,8 @@ export function ProviderConnect({ storeId }: { storeId: string }) {
         onOpenChange={setDialogOpen}
         title={`Connect ${activeProvider === 'PAYSTACK' ? 'Paystack' : 'Flutterwave'}`}
         description={activeProvider === 'PAYSTACK'
-          ? 'Add your Paystack secret and public keys. Secret keys are encrypted and never shown again.'
-          : 'Add your Flutterwave secret key and the webhook verify-hash from your Flutterwave dashboard.'}
+          ? 'Paste your two Paystack keys below. Your secret key is stored safely and never shown again.'
+          : 'Paste your two Flutterwave keys below. They are stored safely and never shown again.'}
       >
         <div className="space-y-4 py-2">
           <div className="flex gap-2">
@@ -220,7 +220,7 @@ export function ProviderConnect({ storeId }: { storeId: string }) {
           {activeProvider === 'PAYSTACK' ? (
             <>
               <div className="space-y-2">
-                <Label htmlFor="paystack-secret">Paystack secret key</Label>
+                <Label htmlFor="paystack-secret">Secret key</Label>
                 <div className="relative">
                   <Input
                     id="paystack-secret"
@@ -233,15 +233,15 @@ export function ProviderConnect({ storeId }: { storeId: string }) {
                     type="button"
                     onClick={() => setShowSecrets(!showSecrets)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    aria-label="Toggle visibility"
+                    aria-label="Show or hide the secret key"
                   >
                     {showSecrets ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500">Find it in your Paystack dashboard → Settings → API Keys.</p>
+                <p className="text-xs text-gray-500">Copy it from Settings → API Keys in your Paystack dashboard.</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="paystack-public">Paystack public key</Label>
+                <Label htmlFor="paystack-public">Public key</Label>
                 <Input
                   id="paystack-public"
                   type="text"
@@ -249,12 +249,13 @@ export function ProviderConnect({ storeId }: { storeId: string }) {
                   value={paystackPublicKey}
                   onChange={(e) => setPaystackPublicKey(e.target.value)}
                 />
+                <p className="text-xs text-gray-500">On the same page as the secret key. This one is safe to share.</p>
               </div>
             </>
           ) : (
             <>
               <div className="space-y-2">
-                <Label htmlFor="flw-secret">Flutterwave secret key</Label>
+                <Label htmlFor="flw-secret">Secret key</Label>
                 <div className="relative">
                   <Input
                     id="flw-secret"
@@ -267,39 +268,45 @@ export function ProviderConnect({ storeId }: { storeId: string }) {
                     type="button"
                     onClick={() => setShowSecrets(!showSecrets)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    aria-label="Toggle visibility"
+                    aria-label="Show or hide the secret key"
                   >
                     {showSecrets ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500">Find it in your Flutterwave dashboard → Settings → API.</p>
+                <p className="text-xs text-gray-500">Copy it from Settings → API in your Flutterwave dashboard.</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="flw-verify">Webhook verify-hash</Label>
+                <Label htmlFor="flw-verify">Secret key (payment confirmation)</Label>
                 <Input
                   id="flw-verify"
                   type="text"
-                  placeholder="Your secret hash for webhook verification"
+                  placeholder="Paste it here"
                   value={flutterwaveVerifyHash}
                   onChange={(e) => setFlutterwaveVerifyHash(e.target.value)}
                 />
                 <p className="text-xs text-gray-500">
-                  Set on the webhook page of your Flutterwave dashboard. Must match exactly for payment webhooks to verify.
+                  Paste the secret key from your provider&apos;s dashboard — it&apos;s how we confirm a payment
+                  really happened. You&apos;ll find it on the Webhooks page of your Flutterwave dashboard.
                 </p>
               </div>
             </>
           )}
 
-          <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300">
-            Important: set your provider&apos;s webhook URL to{' '}
-            <code className="font-mono">https://&lt;your-backend&gt;/api/v1/payments/webhook</code>{' '}
-            so order updates arrive automatically.
-          </div>
+          <details className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+            <summary className="cursor-pointer select-none text-xs font-medium text-gray-600 dark:text-gray-300">
+              Advanced — automatic order updates
+            </summary>
+            <div className="mt-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300">
+              Whoever helps you set up Carticom may need this address. It goes into the webhook settings of your
+              provider&apos;s dashboard, so order updates arrive automatically:{' '}
+              <code className="font-mono">https://&lt;your-backend&gt;/api/v1/payments/webhook</code>
+            </div>
+          </details>
 
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving...' : 'Save credentials'}
+              {saving ? 'Saving...' : 'Save details'}
             </Button>
           </div>
         </div>

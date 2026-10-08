@@ -1,7 +1,7 @@
 import { BaseRepository } from '@/lib/dal/repository';
 import type { OrderDto, CreateOrderDto, UpdateOrderDto } from '@/features/dashboard/types/orders.types';
 import type { QueryParams } from '@/lib/dal/types';
-import axiosInstance from '@/lib/axios';
+import axiosInstance, { extractErrorMessage } from '@/lib/axios';
 
 export class OrdersRepository extends BaseRepository<OrderDto, CreateOrderDto, UpdateOrderDto> {
   constructor() {
@@ -19,8 +19,13 @@ export class OrdersRepository extends BaseRepository<OrderDto, CreateOrderDto, U
   }
 
   async updateOrderStatus(orderId: string, status: string) {
-    const response = await axiosInstance.patch(`/api/v1/orders/${orderId}/status?status=${encodeURIComponent(status)}`);
-    return response.data.data as OrderDto;
+    try {
+      const response = await axiosInstance.patch(`/api/v1/orders/${orderId}/status?status=${encodeURIComponent(status)}`);
+      return response.data.data as OrderDto;
+    } catch (error) {
+      // Surface a plain-language message instead of a raw axios error.
+      throw new Error(extractErrorMessage(error));
+    }
   }
 }
 

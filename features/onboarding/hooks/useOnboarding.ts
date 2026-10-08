@@ -9,6 +9,7 @@ import {
   storeApi,
   productApi} from '@/features/onboarding/services/onboarding.service';
 import { showToast } from '@/lib/notifications/toast';
+import { extractErrorMessage } from '@/lib/axios';
 import type {
   CreateStoreDto,
   UpdateStoreDto,
@@ -25,22 +26,56 @@ export const onboardingKeys = {
   productsByStore: (storeId: string) => ['products', 'store', storeId] as const,
   wallet: ['wallet'] as const};
 
+// ─── Existing Shop (duplicate-shop guard) ─────────────────────
+
+/**
+ * Asks the server which shop the seller already owns, right now.
+ *
+ * Every path that could create a shop calls this first, so a seller who
+ * abandons the wizard halfway — or opens it in two tabs — can never end up
+ * with a second shop. Returns `null` only when the server really has none.
+ */
+export async function fetchExistingStore(): Promise<StoreDto | null> {
+  const res = await storeApi.getMyStores();
+  const stores = res.data.data ?? [];
+  return stores[0] ?? null;
+}
+
 // ─── Create Store ─────────────────────────────────────────────
 
 export function useCreateStore() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateStoreDto) =>
-      storeApi.create(data).then((res) => res.data.data as StoreDto),
-    onSuccess: (store) => {
+    mutationFn: async (data: CreateStoreDto) => {
+      // Safety net: never create a shop when one already exists. If it does,
+      // save these details into that shop instead (the web address is left
+      // untouched so existing links keep working).
+      const existing = await fetchExistingStore();
+      if (existing) {
+        const res = await storeApi.update(existing.id, {
+          storeName: data.storeName,
+          phone: data.phone,
+          description: data.description,
+          businessCategory: data.businessCategory,
+          email: data.email,
+          address: data.address,
+          country: data.country,
+          currency: data.currency});
+        return { store: res.data.data as StoreDto, created: false };
+      }
+
+      const res = await storeApi.create(data);
+      return { store: res.data.data as StoreDto, created: true };
+    },
+    onSuccess: ({ store, created }) => {
       queryClient.invalidateQueries({ queryKey: onboardingKeys.stores });
-      showToast('success', 'Store created successfully');
+      showToast('success', created ? 'Your shop has been created' : 'Your changes were saved');
       return store;
     },
     onError: (error: Error) => {
-      showToast('error', 'Failed to create store', {
-        description: error.message});
+      showToast('error', 'We could not save your shop', {
+        description: extractErrorMessage(error)});
     }});
 }
 
@@ -55,11 +90,11 @@ export function useUpdateStore() {
     onSuccess: (store) => {
       queryClient.invalidateQueries({ queryKey: onboardingKeys.stores });
       queryClient.invalidateQueries({ queryKey: onboardingKeys.storeById(store.id) });
-      showToast('success', 'Store updated successfully');
+      showToast('success', 'Your changes were saved');
     },
     onError: (error: Error) => {
-      showToast('error', 'Failed to update store', {
-        description: error.message});
+      showToast('error', 'We could not save your changes', {
+        description: extractErrorMessage(error)});
     }});
 }
 
@@ -81,8 +116,8 @@ export function useCreateProduct() {
       showToast('success', 'Product created successfully');
     },
     onError: (error: Error) => {
-      showToast('error', 'Failed to create product', {
-        description: error.message});
+      showToast('error', 'We could not save your product', {
+        description: extractErrorMessage(error)});
     }});
 }
 
